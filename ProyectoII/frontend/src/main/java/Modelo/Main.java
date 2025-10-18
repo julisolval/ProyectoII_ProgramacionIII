@@ -5,6 +5,8 @@ import main.java.Controlador.ControladorLogin;
 
 import javax.swing.*;
 
+
+//mensaje prueba de funcionamiento, lo ven?
 public class Main {
     public static void main(String[] args) {
         try {
