@@ -165,19 +165,32 @@ public class ClientHandler implements Runnable {
         String username = datos.getString("username");
         String password = datos.getString("password");
 
-        boolean success = service.login(username, password);
-        if (success) {
-            this.username = username;
-            response.put("estado", "éxito");
-            response.put("mensaje", "Login exitoso");
+        // 🔹 El método service.login ahora devuelve un Map con estado, tipo y mensaje
+        Map<String, Object> resultado = service.login(username, password);
 
-            String nombre = username;
-            server.notifyUserLogin(username, nombre);
-        } else {
-            response.put("estado", "error");
-            response.put("mensaje", "Credenciales incorrectas");
+        // 🔹 Convertimos a JSON para enviar la respuesta al frontend
+        response.put("estado", resultado.get("estado"));
+        response.put("mensaje", resultado.get("mensaje"));
+
+        if ("éxito".equals(resultado.get("estado"))) {
+            this.username = username;
+
+            // Si el backend devuelve también el rol o nombre, lo agregamos
+            if (resultado.containsKey("tipo")) {
+                response.put("tipo", resultado.get("tipo"));
+            }
+            if (resultado.containsKey("nombre")) {
+                response.put("nombre", resultado.get("nombre"));
+            }
+
+            // 🔹 Notificar a los demás usuarios conectados
+            String nombreMostrar = resultado.containsKey("nombre") ?
+                    resultado.get("nombre").toString() : username;
+
+            server.notifyUserLogin(username, nombreMostrar);
         }
     }
+
 
     private void handleLogout(JSONObject datos, JSONObject response) {
         String username = datos.getString("username");

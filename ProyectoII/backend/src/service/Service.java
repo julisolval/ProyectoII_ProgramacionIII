@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Map;
 
 public interface Service {
-    boolean login(String username, String password);
+
+    // 🔹 Ahora devuelve un Map con los datos del usuario
+    Map<String, Object> login(String username, String password);
+
     boolean cambiarClave(String username, String oldPassword, String newPassword);
 
     List<?> obtenerMedicos();

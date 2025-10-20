@@ -70,6 +70,8 @@ public class Interfaz {
     private JButton btnPonerProceso, btnMarcarLista, btnEntregar;
     private JLabel lblEstadoSeleccionado, lblFechaRetiro;
 
+
+
     public Interfaz() { crearInterfaz(); }
 
     public DefaultListModel<String> getUsersListModel() {
@@ -270,11 +272,12 @@ public class Interfaz {
     private void crearInterfaz() {
         frame = new JFrame("Recetas");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1200, 700);
-        frame.setLocationRelativeTo(null);
 
-        panelPrincipal = new JPanel(new BorderLayout());
-        panelPrincipal.setBorder(new EmptyBorder(10, 10, 10, 10));
+        frame.setSize(1100, 680);
+        frame.setLocationRelativeTo(null);
+        panelPrincipal = new JPanel(new BorderLayout(10, 10));
+        panelPrincipal.setBorder(new EmptyBorder(8, 8, 8, 8));
+        panelPrincipal.setBackground(new Color(250, 250, 255));
 
         tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Arial", Font.PLAIN, 14));
@@ -303,47 +306,64 @@ public class Interfaz {
 
         panelPrincipal.add(usersPanel, BorderLayout.EAST);
         panelPrincipal.add(tabbedPane, BorderLayout.CENTER);
+
+        //frame.add(panelPrincipal);
+
+        frame.getContentPane().setBackground(new Color(245, 248, 255));
         frame.add(panelPrincipal);
+
+
+
     }
 
     private JPanel crearPanelUsuariosActivos() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.GRAY),
-                "Usuarios Conectados"
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1, true),
+                "Usuarios Conectados",
+                TitledBorder.CENTER,
+                TitledBorder.TOP,
+                new Font("Arial", Font.BOLD, 13)
         ));
         panel.setPreferredSize(new Dimension(250, 0));
-        panel.setBackground(new Color(240, 240, 240));
+        panel.setBackground(new Color(245, 248, 255));
 
+        // 🔹 Lista de usuarios conectados
         usersListModel = new DefaultListModel<>();
         usersList = new JList<>(usersListModel);
         usersList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        usersList.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        usersList.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        usersList.setBorder(BorderFactory.createLineBorder(new Color(220, 220, 230)));
+        JScrollPane scrollUsuarios = new JScrollPane(usersList);
 
-        JScrollPane usersScrollPane = new JScrollPane(usersList);
-        usersScrollPane.setPreferredSize(new Dimension(200, 300));
+        // 🔹 Etiqueta superior
+        lblActiveUsers = new JLabel("0 usuarios conectados", SwingConstants.CENTER);
+        lblActiveUsers.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblActiveUsers.setForeground(new Color(60, 60, 60));
+        lblActiveUsers.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
-        JPanel buttonsPanel = new JPanel(new FlowLayout());
+        // 🔹 Panel de botones inferior
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         btnSendMessage = new JButton("Enviar");
         btnReceiveMessages = new JButton("Recibir");
 
         btnSendMessage.setBackground(new Color(70, 130, 180));
         btnSendMessage.setForeground(Color.WHITE);
+        btnSendMessage.setFocusPainted(false);
         btnReceiveMessages.setBackground(new Color(34, 139, 34));
         btnReceiveMessages.setForeground(Color.WHITE);
+        btnReceiveMessages.setFocusPainted(false);
 
-        buttonsPanel.add(btnSendMessage);
-        buttonsPanel.add(btnReceiveMessages);
-
-        lblActiveUsers = new JLabel("0 usuarios conectados");
-        lblActiveUsers.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        botones.add(btnSendMessage);
+        botones.add(btnReceiveMessages);
 
         panel.add(lblActiveUsers, BorderLayout.NORTH);
-        panel.add(usersScrollPane, BorderLayout.CENTER);
-        panel.add(buttonsPanel, BorderLayout.SOUTH);
+        panel.add(scrollUsuarios, BorderLayout.CENTER);
+        panel.add(botones, BorderLayout.SOUTH);
 
         return panel;
     }
+
 
     private JPanel crearPanelMedicos() {
         JPanel panel = new JPanel();
@@ -994,4 +1014,19 @@ public class Interfaz {
             tabbedPane.setSelectedIndex(0);
         }
     }
+
+    public void actualizarUsuariosConectados(java.util.List<String> usuarios) {
+        SwingUtilities.invokeLater(() -> {
+            usersListModel.clear();
+            for (String user : usuarios) {
+                usersListModel.addElement(user);
+            }
+            lblActiveUsers.setText(usuarios.size() + " usuarios conectados");
+        });
+    }
+
+
+
+
+
 }
