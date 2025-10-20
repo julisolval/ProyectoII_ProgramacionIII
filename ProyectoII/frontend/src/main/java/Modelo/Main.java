@@ -5,7 +5,7 @@ import main.java.Controlador.ControladorLogin;
 
 import javax.swing.*;
 
-
+// mensaje de prueba Sebas
 //mensaje prueba de funcionamiento, lo ven?
 //prueba 2
 public class Main {
