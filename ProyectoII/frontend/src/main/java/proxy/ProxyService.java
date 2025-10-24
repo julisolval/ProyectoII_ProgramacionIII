@@ -335,13 +335,16 @@ public class ProxyService {
                                     String fechaConfeccion, String fechaRetiro,
                                     List<?> detalles) {
         JSONObject datos = new JSONObject();
-        datos.put("idPaciente", idPaciente);
-        datos.put("idMedico", idMedico);
-        datos.put("fechaConfeccion", fechaConfeccion);
-        datos.put("fechaRetiro", fechaRetiro);
+        // 🔹 Usamos nombres exactos de columnas en la base de datos
+        datos.put("id_paciente", idPaciente);
+        datos.put("id_medico", idMedico);
+        datos.put("fecha_confeccion", fechaConfeccion);
+        datos.put("fecha_retiro", fechaRetiro);
         datos.put("detalles", new JSONArray(detalles));
 
-        return enviarSolicitud(new JSONObject().put("tipo", "guardar_receta").put("datos", datos));
+        return enviarSolicitud(new JSONObject()
+                .put("tipo", "guardar_receta")
+                .put("datos", datos));
     }
 
     public JSONObject actualizarEstadoReceta(int idReceta, String nuevoEstado, String idFarmaceutico) {

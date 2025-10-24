@@ -81,14 +81,16 @@ INSERT INTO medicamento (codigo, nombre, presentacion) VALUES
     ('3333', 'Pronol', '500.0'),
     ('4444', 'Loratadina', '50.0');
 
--- Insertar RECETAS
-INSERT INTO receta (id_paciente, id_medico, fecha_confeccion, fecha_retiro, estado) VALUES
-    ('6666', '1111', '2025-09-08', '2025-09-11', 'ENTREGADA'),
-    ('6666', '1111', '2025-09-14', '2025-10-14', 'CONFECCIONADA'),
-    ('2233', '2222', '2025-09-14', '2025-09-15', 'LISTA'),
-    ('6789', '3333', '2025-09-14', '2025-09-13', 'PROCESO'),
-    ('6789', '7777', '2025-09-16', '2025-01-24', 'CONFECCIONADA');
-
+CREATE TABLE receta (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_paciente VARCHAR(20) NOT NULL,
+    id_medico VARCHAR(20) NOT NULL,
+    fecha_confeccion DATE NOT NULL,
+    fecha_retiro DATE,
+    estado ENUM('CONFECCIONADA', 'PROCESO', 'LISTA', 'ENTREGADA') DEFAULT 'CONFECCIONADA',
+    FOREIGN KEY (id_paciente) REFERENCES paciente(id),
+    FOREIGN KEY (id_medico) REFERENCES usuario(id)
+);
 -- Insertar DETALLES DE RECETAS
 INSERT INTO detallereceta (id_receta, codigo_medicamento, cantidad, indicaciones, duracion) VALUES
     (1, '1111', 1, 'Cada 12 horas', 8),
@@ -105,7 +107,7 @@ SELECT '=== USUARIOS ===' as '';
 SELECT id, nombre, tipo, especialidad FROM usuario;
 
 SELECT '=== RESUMEN DE DATOS ===' as '';
-SELECT 
+SELECT
     (SELECT COUNT(*) FROM usuario) as total_usuarios,
     (SELECT COUNT(*) FROM paciente) as total_pacientes,
     (SELECT COUNT(*) FROM medicamento) as total_medicamentos,
@@ -113,6 +115,6 @@ SELECT
     (SELECT COUNT(*) FROM detallereceta) as total_detalles;
 
 SELECT '=== USUARIOS PARA LOGIN ===' as '';
-SELECT id as usuario, clave as password, tipo, nombre 
-FROM usuario 
+SELECT id as usuario, clave as password, tipo, nombre
+FROM usuario
 WHERE tipo IN ('MEDICO', 'FARMACEUTA', 'ADMIN');

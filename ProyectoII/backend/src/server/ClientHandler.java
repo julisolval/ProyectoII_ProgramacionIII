@@ -10,10 +10,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ClientHandler implements Runnable {
     private Socket socket;
@@ -32,6 +29,7 @@ public class ClientHandler implements Runnable {
             this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
             System.err.println("Error creando ClientHandler: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -40,116 +38,87 @@ public class ClientHandler implements Runnable {
         try {
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                System.out.println("Mensaje recibido: " + inputLine);
-                JSONObject request = new JSONObject(inputLine);
-                processRequest(request);
+                System.out.println("Mensaje recibido de " + (username != null ? username : "desconocido") + ": " + inputLine);
+                try {
+                    JSONObject request = new JSONObject(inputLine);
+                    processRequest(request);
+                } catch (Exception ex) {
+                    System.err.println("Error procesando JSON: " + ex.getMessage());
+                    ex.printStackTrace();
+                    JSONObject errorResponse = new JSONObject();
+                    errorResponse.put("estado", "error");
+                    errorResponse.put("mensaje", "JSON inválido o error interno");
+                    sendMessage(errorResponse);
+                }
             }
         } catch (IOException e) {
             System.err.println("Error en ClientHandler: " + e.getMessage());
+            e.printStackTrace();
         } finally {
+            closeResources();
             if (username != null) {
                 server.notifyUserLogout(username);
-            }
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
             server.removeClient(this);
         }
     }
 
+    private void closeResources() {
+        try {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void processRequest(JSONObject request) {
-        String tipo = request.getString("tipo");
+        String tipo = request.optString("tipo", null);
         JSONObject datos = request.optJSONObject("datos");
         JSONObject response = new JSONObject();
+        response.put("estado", "error");
+        response.put("mensaje", "Operación no procesada");
 
         if (request.has("requestId")) {
             response.put("requestId", request.getString("requestId"));
         }
 
+        if (tipo == null) {
+            response.put("mensaje", "Falta el campo 'tipo'");
+            sendMessage(response);
+            return;
+        }
+
         try {
             switch (tipo) {
-                case "login":
-                    handleLogin(datos, response);
-                    break;
-                case "logout":
-                    handleLogout(datos, response);
-                    break;
-                case "cambiar_clave":
-                    handleCambiarClave(datos, response);
-                    break;
-                case "obtener_medicos":
-                    handleObtenerMedicos(response);
-                    break;
-                case "guardar_medico":
-                    handleGuardarMedico(datos, response);
-                    break;
-                case "actualizar_medico":
-                    handleActualizarMedico(datos, response);
-                    break;
-                case "eliminar_medico":
-                    handleEliminarMedico(datos, response);
-                    break;
-                case "obtener_farmaceuticos":
-                    handleObtenerFarmaceuticos(response);
-                    break;
-                case "guardar_farmaceutico":
-                    handleGuardarFarmaceutico(datos, response);
-                    break;
-                case "actualizar_farmaceutico":
-                    handleActualizarFarmaceutico(datos, response);
-                    break;
-                case "eliminar_farmaceutico":
-                    handleEliminarFarmaceutico(datos, response);
-                    break;
-                case "obtener_pacientes":
-                    handleObtenerPacientes(response);
-                    break;
-                case "guardar_paciente":
-                    handleGuardarPaciente(datos, response);
-                    break;
-                case "actualizar_paciente":
-                    handleActualizarPaciente(datos, response);
-                    break;
-                case "eliminar_paciente":
-                    handleEliminarPaciente(datos, response);
-                    break;
-                case "obtener_medicamentos":
-                    handleObtenerMedicamentos(response);
-                    break;
-                case "guardar_medicamento":
-                    handleGuardarMedicamento(datos, response);
-                    break;
-                case "actualizar_medicamento":
-                    handleActualizarMedicamento(datos, response);
-                    break;
-                case "eliminar_medicamento":
-                    handleEliminarMedicamento(datos, response);
-                    break;
-                case "guardar_receta":
-                    handleGuardarReceta(datos, response);
-                    break;
-                case "obtener_recetas":
-                    handleObtenerRecetas(response);
-                    break;
-                case "actualizar_estado_receta":
-                    handleActualizarEstadoReceta(datos, response);
-                    break;
-                case "obtener_estadisticas":
-                    handleObtenerEstadisticas(datos, response);
-                    break;
-                case "enviar_mensaje":
-                    handleEnviarMensaje(datos, response);
-                    break;
-                case "obtener_mensajes":
-                    handleObtenerMensajes(datos, response);
-                    break;
-                case "obtener_usuarios_conectados":
-                    handleObtenerUsuariosConectados(response);
-                    break;
+                case "login": handleLogin(datos, response); break;
+                case "logout": handleLogout(datos, response); break;
+                case "cambiar_clave": handleCambiarClave(datos, response); break;
+                case "obtener_medicos": handleObtenerMedicos(response); break;
+                case "guardar_medico": handleGuardarMedico(datos, response); break;
+                case "actualizar_medico": handleActualizarMedico(datos, response); break;
+                case "eliminar_medico": handleEliminarMedico(datos, response); break;
+                case "obtener_farmaceuticos": handleObtenerFarmaceuticos(response); break;
+                case "guardar_farmaceutico": handleGuardarFarmaceutico(datos, response); break;
+                case "actualizar_farmaceutico": handleActualizarFarmaceutico(datos, response); break;
+                case "eliminar_farmaceutico": handleEliminarFarmaceutico(datos, response); break;
+                case "obtener_pacientes": handleObtenerPacientes(response); break;
+                case "guardar_paciente": handleGuardarPaciente(datos, response); break;
+                case "actualizar_paciente": handleActualizarPaciente(datos, response); break;
+                case "eliminar_paciente": handleEliminarPaciente(datos, response); break;
+                case "obtener_medicamentos": handleObtenerMedicamentos(response); break;
+                case "guardar_medicamento": handleGuardarMedicamento(datos, response); break;
+                case "actualizar_medicamento": handleActualizarMedicamento(datos, response); break;
+                case "eliminar_medicamento": handleEliminarMedicamento(datos, response); break;
+                case "guardar_receta": handleGuardarReceta(datos, response); break;
+                case "obtener_recetas": handleObtenerRecetas(response); break;
+                case "actualizar_estado_receta": handleActualizarEstadoReceta(datos, response); break;
+                case "obtener_estadisticas": handleObtenerEstadisticas(datos, response); break;
+                case "enviar_mensaje": handleEnviarMensaje(datos, response); break;
+                case "obtener_mensajes": handleObtenerMensajes(datos, response); break;
+                case "obtener_usuarios_conectados": handleObtenerUsuariosConectados(response); break;
                 default:
-                    response.put("estado", "error");
                     response.put("mensaje", "Operación no soportada: " + tipo);
             }
         } catch (Exception e) {
@@ -158,255 +127,383 @@ public class ClientHandler implements Runnable {
             e.printStackTrace();
         }
 
-        out.println(response.toString());
+        sendMessage(response);
     }
 
+    // --- Helpers unificados ---
+    private String getStringVariant(JSONObject obj, String... posiblesNombres) {
+        for (String nombre : posiblesNombres) {
+            if (obj.has(nombre) && !obj.isNull(nombre)) {
+                return obj.getString(nombre);
+            }
+        }
+        return null;
+    }
+
+    private JSONArray getArrayVariant(JSONObject obj, String... posiblesNombres) {
+        for (String nombre : posiblesNombres) {
+            if (obj.has(nombre) && !obj.isNull(nombre)) {
+                return obj.getJSONArray(nombre);
+            }
+        }
+        return null;
+    }
+
+    private void respondExito(JSONObject response, String mensaje) {
+        response.put("estado", "éxito");
+        response.put("mensaje", mensaje);
+    }
+
+    // --- Handlers ---
     private void handleLogin(JSONObject datos, JSONObject response) {
-        String username = datos.getString("username");
-        String password = datos.getString("password");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String username = getStringVariant(datos, "username", "user");
+        String password = getStringVariant(datos, "password", "pass");
+        if (username == null || password == null) { response.put("mensaje", "Usuario o contraseña faltantes"); sendMessage(response); return; }
 
-        // 🔹 El método service.login ahora devuelve un Map con estado, tipo y mensaje
         Map<String, Object> resultado = service.login(username, password);
-
-        // 🔹 Convertimos a JSON para enviar la respuesta al frontend
         response.put("estado", resultado.get("estado"));
         response.put("mensaje", resultado.get("mensaje"));
 
         if ("éxito".equals(resultado.get("estado"))) {
             this.username = username;
+            if (resultado.containsKey("tipo")) response.put("tipo", resultado.get("tipo"));
+            if (resultado.containsKey("nombre")) response.put("nombre", resultado.get("nombre"));
 
-            // Si el backend devuelve también el rol o nombre, lo agregamos
-            if (resultado.containsKey("tipo")) {
-                response.put("tipo", resultado.get("tipo"));
-            }
-            if (resultado.containsKey("nombre")) {
-                response.put("nombre", resultado.get("nombre"));
-            }
-
-            // 🔹 Notificar a los demás usuarios conectados
-            String nombreMostrar = resultado.containsKey("nombre") ?
-                    resultado.get("nombre").toString() : username;
-
+            String nombreMostrar = resultado.containsKey("nombre") ? resultado.get("nombre").toString() : username;
             server.notifyUserLogin(username, nombreMostrar);
         }
     }
 
-
     private void handleLogout(JSONObject datos, JSONObject response) {
-        String username = datos.getString("username");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String username = getStringVariant(datos, "username", "user");
+        if (username == null) { response.put("mensaje", "Usuario faltante"); sendMessage(response); return; }
+
         this.username = null;
-        response.put("estado", "éxito");
-        response.put("mensaje", "Logout exitoso");
+        respondExito(response, "Logout exitoso");
         server.notifyUserLogout(username);
     }
 
     private void handleCambiarClave(JSONObject datos, JSONObject response) {
-        String username = datos.getString("username");
-        String oldPassword = datos.getString("oldPassword");
-        String newPassword = datos.getString("newPassword");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String username = getStringVariant(datos, "username", "user");
+        String oldPassword = getStringVariant(datos, "oldPassword", "old_pass");
+        String newPassword = getStringVariant(datos, "newPassword", "new_pass");
+        if (username == null || oldPassword == null || newPassword == null) {
+            response.put("mensaje", "Campos incompletos para cambiar clave");
+            sendMessage(response);
+            return;
+        }
 
         boolean success = service.cambiarClave(username, oldPassword, newPassword);
-        if (success) {
-            response.put("estado", "éxito");
-            response.put("mensaje", "Clave cambiada exitosamente");
-        } else {
-            response.put("estado", "error");
-            response.put("mensaje", "Error al cambiar la clave");
-        }
+        if (success) respondExito(response, "Clave cambiada exitosamente");
+        else { response.put("estado", "error"); response.put("mensaje", "Error al cambiar la clave"); }
     }
 
     private void handleObtenerMedicos(JSONObject response) {
         List<?> medicos = service.obtenerMedicos();
-        response.put("estado", "éxito");
+        respondExito(response, "Medicos obtenidos");
         response.put("datos", new JSONArray(medicos));
     }
 
     private void handleGuardarMedico(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> medico = new HashMap<>();
-        medico.put("id", datos.getString("id"));
-        medico.put("nombre", datos.getString("nombre"));
-        medico.put("especialidad", datos.getString("especialidad"));
-
+        medico.put("id", getStringVariant(datos, "id"));
+        medico.put("nombre", getStringVariant(datos, "nombre"));
+        medico.put("especialidad", getStringVariant(datos, "especialidad"));
         service.guardarMedico(medico);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Médico guardado exitosamente");
+        respondExito(response, "Médico guardado exitosamente");
     }
 
     private void handleActualizarMedico(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> medico = new HashMap<>();
-        medico.put("id", datos.getString("id"));
-        medico.put("nombre", datos.getString("nombre"));
-        medico.put("especialidad", datos.getString("especialidad"));
-
+        medico.put("id", getStringVariant(datos, "id"));
+        medico.put("nombre", getStringVariant(datos, "nombre"));
+        medico.put("especialidad", getStringVariant(datos, "especialidad"));
         service.actualizarMedico(medico);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Médico actualizado exitosamente");
+        respondExito(response, "Médico actualizado exitosamente");
     }
 
     private void handleEliminarMedico(JSONObject datos, JSONObject response) {
-        String id = datos.getString("id");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String id = getStringVariant(datos, "id");
+        if (id == null) { response.put("mensaje", "ID faltante"); sendMessage(response); return; }
         service.eliminarMedico(id);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Médico eliminado exitosamente");
+        respondExito(response, "Médico eliminado exitosamente");
     }
 
+    // --- Farmaceuticos ---
     private void handleObtenerFarmaceuticos(JSONObject response) {
         List<?> farmaceuticos = service.obtenerFarmaceuticos();
-        response.put("estado", "éxito");
+        respondExito(response, "Farmacéuticos obtenidos");
         response.put("datos", new JSONArray(farmaceuticos));
     }
 
     private void handleGuardarFarmaceutico(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> farmaceutico = new HashMap<>();
-        farmaceutico.put("id", datos.getString("id"));
-        farmaceutico.put("nombre", datos.getString("nombre"));
-
+        farmaceutico.put("id", getStringVariant(datos, "id"));
+        farmaceutico.put("nombre", getStringVariant(datos, "nombre"));
         service.guardarFarmaceutico(farmaceutico);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Farmacéutico guardado exitosamente");
+        respondExito(response, "Farmacéutico guardado exitosamente");
     }
 
     private void handleActualizarFarmaceutico(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> farmaceutico = new HashMap<>();
-        farmaceutico.put("id", datos.getString("id"));
-        farmaceutico.put("nombre", datos.getString("nombre"));
-
+        farmaceutico.put("id", getStringVariant(datos, "id"));
+        farmaceutico.put("nombre", getStringVariant(datos, "nombre"));
         service.actualizarFarmaceutico(farmaceutico);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Farmacéutico actualizado exitosamente");
+        respondExito(response, "Farmacéutico actualizado exitosamente");
     }
 
     private void handleEliminarFarmaceutico(JSONObject datos, JSONObject response) {
-        String id = datos.getString("id");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String id = getStringVariant(datos, "id");
+        if (id == null) { response.put("mensaje", "ID faltante"); sendMessage(response); return; }
         service.eliminarFarmaceutico(id);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Farmacéutico eliminado exitosamente");
+        respondExito(response, "Farmacéutico eliminado exitosamente");
     }
 
+    // --- Pacientes ---
     private void handleObtenerPacientes(JSONObject response) {
         List<?> pacientes = service.obtenerPacientes();
-        response.put("estado", "éxito");
+        respondExito(response, "Pacientes obtenidos");
         response.put("datos", new JSONArray(pacientes));
     }
 
     private void handleGuardarPaciente(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> paciente = new HashMap<>();
-        paciente.put("id", datos.getString("id"));
-        paciente.put("nombre", datos.getString("nombre"));
-        paciente.put("fecha_nacimiento", datos.getString("fecha_nacimiento"));
-        paciente.put("telefono", datos.getString("telefono"));
-
+        paciente.put("id", getStringVariant(datos, "id"));
+        paciente.put("nombre", getStringVariant(datos, "nombre"));
+        paciente.put("fecha_nacimiento", getStringVariant(datos, "fecha_nacimiento", "fechaNacimiento"));
+        paciente.put("telefono", getStringVariant(datos, "telefono", "tel"));
         service.guardarPaciente(paciente);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Paciente guardado exitosamente");
+        respondExito(response, "Paciente guardado exitosamente");
     }
 
     private void handleActualizarPaciente(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> paciente = new HashMap<>();
-        paciente.put("id", datos.getString("id"));
-        paciente.put("nombre", datos.getString("nombre"));
-        paciente.put("fecha_nacimiento", datos.getString("fecha_nacimiento"));
-        paciente.put("telefono", datos.getString("telefono"));
-
+        paciente.put("id", getStringVariant(datos, "id"));
+        paciente.put("nombre", getStringVariant(datos, "nombre"));
+        paciente.put("fecha_nacimiento", getStringVariant(datos, "fecha_nacimiento", "fechaNacimiento"));
+        paciente.put("telefono", getStringVariant(datos, "telefono", "tel"));
         service.actualizarPaciente(paciente);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Paciente actualizado exitosamente");
+        respondExito(response, "Paciente actualizado exitosamente");
     }
 
     private void handleEliminarPaciente(JSONObject datos, JSONObject response) {
-        String id = datos.getString("id");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String id = getStringVariant(datos, "id");
+        if (id == null) { response.put("mensaje", "ID faltante"); sendMessage(response); return; }
         service.eliminarPaciente(id);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Paciente eliminado exitosamente");
+        respondExito(response, "Paciente eliminado exitosamente");
     }
 
+    // --- Medicamentos ---
     private void handleObtenerMedicamentos(JSONObject response) {
         List<?> medicamentos = service.obtenerMedicamentos();
-        response.put("estado", "éxito");
+        respondExito(response, "Medicamentos obtenidos");
         response.put("datos", new JSONArray(medicamentos));
     }
 
     private void handleGuardarMedicamento(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> medicamento = new HashMap<>();
-        medicamento.put("codigo", datos.getString("codigo"));
-        medicamento.put("nombre", datos.getString("nombre"));
-        medicamento.put("presentacion", datos.getString("presentacion"));
-
+        medicamento.put("codigo", getStringVariant(datos, "codigo"));
+        medicamento.put("nombre", getStringVariant(datos, "nombre"));
+        medicamento.put("presentacion", getStringVariant(datos, "presentacion"));
         service.guardarMedicamento(medicamento);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Medicamento guardado exitosamente");
+        respondExito(response, "Medicamento guardado exitosamente");
     }
 
     private void handleActualizarMedicamento(JSONObject datos, JSONObject response) {
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         Map<String, String> medicamento = new HashMap<>();
-        medicamento.put("codigo", datos.getString("codigo"));
-        medicamento.put("nombre", datos.getString("nombre"));
-        medicamento.put("presentacion", datos.getString("presentacion"));
-
+        medicamento.put("codigo", getStringVariant(datos, "codigo"));
+        medicamento.put("nombre", getStringVariant(datos, "nombre"));
+        medicamento.put("presentacion", getStringVariant(datos, "presentacion"));
         service.actualizarMedicamento(medicamento);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Medicamento actualizado exitosamente");
+        respondExito(response, "Medicamento actualizado exitosamente");
     }
 
     private void handleEliminarMedicamento(JSONObject datos, JSONObject response) {
-        String codigo = datos.getString("codigo");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String codigo = getStringVariant(datos, "codigo");
+        if (codigo == null) { response.put("mensaje", "Código faltante"); sendMessage(response); return; }
         service.eliminarMedicamento(codigo);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Medicamento eliminado exitosamente");
+        respondExito(response, "Medicamento eliminado exitosamente");
     }
+
+
+    /**
+     * Devuelve el valor de un campo del JSONObject, buscando primero en camelCase
+     * y luego en snake_case.
+     */
+    private String getField(JSONObject obj, String camelCase, String snakeCase) {
+        if (obj.has(camelCase) && !obj.isNull(camelCase)) {
+            return obj.getString(camelCase);
+        } else if (obj.has(snakeCase) && !obj.isNull(snakeCase)) {
+            return obj.getString(snakeCase);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Devuelve un int de un campo de JSONObject, buscando camelCase y snake_case
+     */
+    private int getIntField(JSONObject obj, String camelCase, String snakeCase) {
+        if (obj.has(camelCase) && !obj.isNull(camelCase)) {
+            return obj.getInt(camelCase);
+        } else if (obj.has(snakeCase) && !obj.isNull(snakeCase)) {
+            return obj.getInt(snakeCase);
+        } else {
+            return -1; // valor por defecto si no existe
+        }
+    }
+
+
 
     private void handleGuardarReceta(JSONObject datos, JSONObject response) {
-        Map<String, Object> receta = new HashMap<>();
-        receta.put("idPaciente", datos.getString("idPaciente"));
-        receta.put("idMedico", datos.getString("idMedico"));
-        receta.put("fechaConfeccion", datos.getString("fechaConfeccion"));
-        receta.put("fechaRetiro", datos.getString("fechaRetiro"));
+        try {
+            if (datos == null) {
+                response.put("estado", "error");
+                response.put("mensaje", "Datos faltantes");
+                sendMessage(response);
+                return;
+            }
 
-        JSONArray detallesArray = datos.getJSONArray("detalles");
-        List<Map<String, Object>> detalles = new ArrayList<>();
-        for (int i = 0; i < detallesArray.length(); i++) {
-            JSONObject detalleJson = detallesArray.getJSONObject(i);
-            Map<String, Object> detalle = new HashMap<>();
-            detalle.put("codigoMedicamento", detalleJson.getString("codigoMedicamento"));
-            detalle.put("cantidad", detalleJson.getInt("cantidad"));
-            detalle.put("indicaciones", detalleJson.getString("indicaciones"));
-            detalle.put("duracion", detalleJson.getInt("duracion"));
-            detalles.add(detalle);
+            // --- Leer ID paciente y médico como String ---
+            String idPaciente = datos.optString("idPaciente", datos.optString("id_paciente", null));
+            String idMedico = datos.optString("idMedico", datos.optString("id_medico", null));
+
+            if (idPaciente == null || idMedico == null) {
+                response.put("estado", "error");
+                response.put("mensaje", "Campos obligatorios faltantes: idPaciente o idMedico");
+                sendMessage(response);
+                return;
+            }
+
+            // --- Leer fechas ---
+            String fechaConfeccion = datos.optString("fechaConfeccion", datos.optString("fecha_confeccion", null));
+            if (fechaConfeccion == null || fechaConfeccion.isEmpty()) {
+                fechaConfeccion = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+            }
+
+            String fechaRetiro = datos.optString("fechaRetiro", datos.optString("fecha_retiro", null));
+            if (fechaRetiro != null && fechaRetiro.isEmpty()) {
+                fechaRetiro = null;
+            }
+
+            // --- Preparar receta ---
+            Map<String, Object> receta = new HashMap<>();
+            receta.put("id_paciente", idPaciente);
+            receta.put("id_medico", idMedico);
+            receta.put("fechaConfeccion", fechaConfeccion);
+            receta.put("fechaRetiro", fechaRetiro);
+
+            // --- Leer detalles ---
+            JSONArray detallesArray = datos.optJSONArray("detalles");
+            if (detallesArray == null || detallesArray.isEmpty()) {
+                response.put("estado", "error");
+                response.put("mensaje", "No hay detalles de medicamentos");
+                sendMessage(response);
+                return;
+            }
+
+            List<Map<String, Object>> detalles = new ArrayList<>();
+            for (int i = 0; i < detallesArray.length(); i++) {
+                JSONObject detalleJson = detallesArray.getJSONObject(i);
+                Map<String, Object> detalle = new HashMap<>();
+
+                String codigoMedicamento = detalleJson.optString("codigoMedicamento", null);
+                int cantidad = detalleJson.optInt("cantidad", -1);
+                String indicaciones = detalleJson.optString("indicaciones", null);
+                int duracion = detalleJson.optInt("duracion", -1);
+
+                if (codigoMedicamento == null || cantidad < 0 || indicaciones == null || duracion < 0) {
+                    response.put("estado", "error");
+                    response.put("mensaje", "Detalle de medicamento incompleto en posición " + i);
+                    sendMessage(response);
+                    return;
+                }
+
+                detalle.put("codigoMedicamento", codigoMedicamento);
+                detalle.put("cantidad", cantidad);
+                detalle.put("indicaciones", indicaciones);
+                detalle.put("duracion", duracion);
+
+                detalles.add(detalle);
+            }
+
+            // --- Debug: imprimir receta antes de guardar ---
+            System.out.println("Receta a guardar: " + receta);
+            System.out.println("Detalles: " + detalles);
+
+            // --- Guardar receta ---
+            service.guardarReceta(receta, detalles);
+
+            response.put("estado", "éxito");
+            response.put("mensaje", "Receta guardada exitosamente");
+
+        } catch (Exception e) {
+            response.put("estado", "error");
+            response.put("mensaje", "Error al guardar receta: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        service.guardarReceta(receta, detalles);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Receta guardada exitosamente");
+        sendMessage(response);
     }
+
+
+
 
     private void handleObtenerRecetas(JSONObject response) {
         List<?> recetas = service.obtenerRecetas();
-        response.put("estado", "éxito");
+        respondExito(response, "Recetas obtenidas");
         response.put("datos", new JSONArray(recetas));
     }
 
     private void handleActualizarEstadoReceta(JSONObject datos, JSONObject response) {
-        int idReceta = datos.getInt("idReceta");
-        String nuevoEstado = datos.getString("nuevoEstado");
-        String idFarmaceutico = datos.getString("idFarmaceutico");
-
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        int idReceta = datos.optInt("idReceta", -1);
+        String nuevoEstado = getStringVariant(datos, "nuevoEstado", "nuevo_estado");
+        String idFarmaceutico = getStringVariant(datos, "idFarmaceutico", "id_farmaceutico");
+        if (idReceta == -1 || nuevoEstado == null || idFarmaceutico == null) {
+            response.put("mensaje", "Campos incompletos para actualizar estado de receta");
+            sendMessage(response);
+            return;
+        }
         service.actualizarEstadoReceta(idReceta, nuevoEstado, idFarmaceutico);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Estado de receta actualizado exitosamente");
+        respondExito(response, "Estado de receta actualizado exitosamente");
     }
 
+    // --- Estadísticas ---
     private void handleObtenerEstadisticas(JSONObject datos, JSONObject response) {
-        String desdeStr = datos.getString("desde");
-        String hastaStr = datos.getString("hasta");
-        String medicamentoFiltro = datos.optString("medicamentoFiltro", null);
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String desdeStr = getStringVariant(datos, "desde");
+        String hastaStr = getStringVariant(datos, "hasta");
+        String medicamentoFiltro = getStringVariant(datos, "medicamentoFiltro", "medicamento_filtro");
+
+        if (desdeStr == null || hastaStr == null) {
+            response.put("mensaje", "Fechas incompletas");
+            sendMessage(response);
+            return;
+        }
 
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            java.util.Date desde = sdf.parse(desdeStr);
-            java.util.Date hasta = sdf.parse(hastaStr);
+            Date desde = sdf.parse(desdeStr);
+            Date hasta = sdf.parse(hastaStr);
 
             Map<String, Object> estadisticas = service.obtenerEstadisticas(desde, hasta, medicamentoFiltro);
-            response.put("estado", "éxito");
+            respondExito(response, "Estadísticas obtenidas");
             response.put("datos", new JSONObject(estadisticas));
         } catch (Exception e) {
             response.put("estado", "error");
@@ -414,31 +511,39 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // --- Mensajes ---
     private void handleEnviarMensaje(JSONObject datos, JSONObject response) {
-        String remitente = datos.getString("remitente");
-        String destinatario = datos.getString("destinatario");
-        String texto = datos.getString("texto");
-
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String remitente = getStringVariant(datos, "remitente");
+        String destinatario = getStringVariant(datos, "destinatario");
+        String texto = getStringVariant(datos, "texto");
+        if (remitente == null || destinatario == null || texto == null) {
+            response.put("mensaje", "Campos incompletos para enviar mensaje");
+            sendMessage(response);
+            return;
+        }
         service.enviarMensaje(remitente, destinatario, texto);
-        response.put("estado", "éxito");
-        response.put("mensaje", "Mensaje enviado exitosamente");
+        respondExito(response, "Mensaje enviado exitosamente");
     }
 
     private void handleObtenerMensajes(JSONObject datos, JSONObject response) {
-        String usuario = datos.getString("usuario");
+        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        String usuario = getStringVariant(datos, "usuario");
+        if (usuario == null) { response.put("mensaje", "Usuario faltante"); sendMessage(response); return; }
         List<?> mensajes = service.obtenerMensajes(usuario);
-        response.put("estado", "éxito");
+        respondExito(response, "Mensajes obtenidos");
         response.put("datos", new JSONArray(mensajes));
     }
 
     private void handleObtenerUsuariosConectados(JSONObject response) {
         List<String> usuarios = service.obtenerUsuariosConectados();
-        response.put("estado", "éxito");
+        respondExito(response, "Usuarios conectados obtenidos");
         response.put("datos", new JSONArray(usuarios));
     }
 
-    public void sendMessage(org.json.JSONObject message) {
-        out.println(message.toString());
+    // --- Envío de mensajes ---
+    public void sendMessage(JSONObject message) {
+        if (isConnected() && out != null) out.println(message.toString());
     }
 
     public boolean isConnected() {

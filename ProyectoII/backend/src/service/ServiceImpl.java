@@ -403,65 +403,84 @@ public class ServiceImpl implements Service {
         if (!(recetaObj instanceof Map)) {
             throw new IllegalArgumentException("Parámetro receta debe ser un Map");
         }
+
         @SuppressWarnings("unchecked")
         Map<String, Object> receta = (Map<String, Object>) recetaObj;
+        @SuppressWarnings("unchecked")
         List<Map<String, Object>> detalles = (List<Map<String, Object>>) detallesObj;
 
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
+        String sqlReceta = "INSERT INTO Receta (id_paciente, id_medico, fecha_confeccion, fecha_retiro, estado) "
+                + "VALUES (?, ?, ?, ?, 'CONFECCIONADA')";
+        String sqlDetalle = "INSERT INTO DetalleReceta (id_receta, codigo_medicamento, cantidad, indicaciones, duracion) "
+                + "VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
 
-            String sqlReceta = "INSERT INTO Receta (id_paciente, id_medico, fecha_confeccion, fecha_retiro, estado) VALUES (?, ?, ?, ?, 'CONFECCIONADA')";
-            PreparedStatement stmtReceta = conn.prepareStatement(sqlReceta, Statement.RETURN_GENERATED_KEYS);
-            stmtReceta.setString(1, (String) receta.get("idPaciente"));
-            stmtReceta.setString(2, (String) receta.get("idMedico"));
-            stmtReceta.setString(3, (String) receta.get("fechaConfeccion"));
-            stmtReceta.setString(4, (String) receta.get("fechaRetiro"));
-            stmtReceta.executeUpdate();
+            int idReceta;
 
-            ResultSet generatedKeys = stmtReceta.getGeneratedKeys();
-            int idReceta = -1;
-            if (generatedKeys.next()) {
-                idReceta = generatedKeys.getInt(1);
+            // 📌 Insertar receta
+            try (PreparedStatement stmtReceta = conn.prepareStatement(sqlReceta, Statement.RETURN_GENERATED_KEYS)) {
+
+                String idPaciente = (String) receta.get("id_paciente");
+                //String idMedico = (String) receta.get("id_medico");
+                String idMedico = "2222";
+
+                String fechaConfeccion = (String) receta.get("fechaConfeccion");
+                String fechaRetiro = (String) receta.get("fechaRetiro");
+
+                // Si no viene fecha de confección, usar la actual
+                if (fechaConfeccion == null || fechaConfeccion.isEmpty()) {
+                    fechaConfeccion = new java.sql.Date(System.currentTimeMillis()).toString();
+                }
+
+                // Si fecha_retiro está vacía, se guarda como NULL
+                stmtReceta.setString(1, idPaciente);
+                stmtReceta.setString(2, idMedico);
+                stmtReceta.setString(3, fechaConfeccion);
+                if (fechaRetiro == null || fechaRetiro.isEmpty()) {
+                    stmtReceta.setNull(4, java.sql.Types.DATE);
+                } else {
+                    stmtReceta.setString(4, fechaRetiro);
+                }
+
+                int filas = stmtReceta.executeUpdate();
+                if (filas == 0) {
+                    throw new SQLException("No se pudo insertar la receta");
+                }
+
+                try (ResultSet generatedKeys = stmtReceta.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        idReceta = generatedKeys.getInt(1);
+                    } else {
+                        throw new SQLException("No se pudo obtener el ID de la receta insertada");
+                    }
+                }
             }
 
-            String sqlDetalle = "INSERT INTO DetalleReceta (id_receta, codigo_medicamento, cantidad, indicaciones, duracion) VALUES (?, ?, ?, ?, ?)";
-            PreparedStatement stmtDetalle = conn.prepareStatement(sqlDetalle);
-
-            for (Map<String, Object> detalle : detalles) {
-                stmtDetalle.setInt(1, idReceta);
-                stmtDetalle.setString(2, (String) detalle.get("codigoMedicamento"));
-                stmtDetalle.setInt(3, Integer.parseInt(detalle.get("cantidad").toString()));
-                stmtDetalle.setString(4, (String) detalle.get("indicaciones"));
-                stmtDetalle.setInt(5, Integer.parseInt(detalle.get("duracion").toString()));
-                stmtDetalle.addBatch();
+            // 📋 Insertar detalles
+            try (PreparedStatement stmtDetalle = conn.prepareStatement(sqlDetalle)) {
+                for (Map<String, Object> detalle : detalles) {
+                    stmtDetalle.setInt(1, idReceta);
+                    stmtDetalle.setString(2, (String) detalle.get("codigoMedicamento"));
+                    stmtDetalle.setInt(3, Integer.parseInt(detalle.get("cantidad").toString()));
+                    stmtDetalle.setString(4, (String) detalle.get("indicaciones"));
+                    stmtDetalle.setInt(5, Integer.parseInt(detalle.get("duracion").toString()));
+                    stmtDetalle.addBatch();
+                }
+                stmtDetalle.executeBatch();
             }
 
-            stmtDetalle.executeBatch();
             conn.commit();
+            System.out.println("✅ Receta y detalles guardados correctamente. ID receta: " + idReceta);
 
         } catch (SQLException e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            System.err.println("Error guardando receta: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Error al guardar receta: " + e.getMessage());
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
+
+
 
     @Override
     public List<Map<String, Object>> obtenerRecetas() {
