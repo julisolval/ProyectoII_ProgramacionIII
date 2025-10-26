@@ -8,9 +8,22 @@ import java.util.Date;
 
 public class ServiceImpl implements Service {
 
-    // ==========================================================
-    // 🔹 LOGIN CORREGIDO - Devuelve un Map con los datos del usuario
-    // ==========================================================
+    @Override
+    public void logout(String username) {
+        String sql = "UPDATE Usuario SET activo = FALSE WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, username);
+            stmt.executeUpdate();
+            System.out.println("Usuario marcado como inactivo: " + username);
+
+        } catch (SQLException e) {
+            System.err.println("Error en logout BD: " + e.getMessage());
+        }
+    }
+
     @Override
     public Map<String, Object> login(String username, String password) {
         String sql = "SELECT id, nombre, tipo, especialidad FROM Usuario WHERE id = ? AND clave = ?";
@@ -30,11 +43,11 @@ public class ServiceImpl implements Service {
                 usuario.put("tipo", rs.getString("tipo"));
                 usuario.put("especialidad", rs.getString("especialidad"));
 
-                // Marcar como activo
                 String updateSql = "UPDATE Usuario SET activo = TRUE WHERE id = ?";
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
                     updateStmt.setString(1, username);
                     updateStmt.executeUpdate();
+                    System.out.println("Usuario marcado como activo: " + username);
                 }
             } else {
                 usuario.put("estado", "error");
@@ -50,7 +63,6 @@ public class ServiceImpl implements Service {
         return usuario;
     }
 
-    // ==========================================================
     @Override
     public boolean cambiarClave(String username, String oldPassword, String newPassword) {
         String sql = "UPDATE Usuario SET clave = ? WHERE id = ? AND clave = ?";
@@ -69,9 +81,6 @@ public class ServiceImpl implements Service {
         }
     }
 
-    // ==========================================================
-    // 🔹 MÉDICOS
-    // ==========================================================
     @Override
     public List<Map<String, Object>> obtenerMedicos() {
         List<Map<String, Object>> medicos = new ArrayList<>();
@@ -150,9 +159,6 @@ public class ServiceImpl implements Service {
         }
     }
 
-    // ==========================================================
-    // 🔹 FARMACÉUTICOS
-    // ==========================================================
     @Override
     public List<Map<String, Object>> obtenerFarmaceuticos() {
         List<Map<String, Object>> farmaceuticos = new ArrayList<>();
@@ -227,9 +233,6 @@ public class ServiceImpl implements Service {
         }
     }
 
-    // ==========================================================
-    // 🔹 PACIENTES
-    // ==========================================================
     @Override
     public List<Map<String, Object>> obtenerPacientes() {
         List<Map<String, Object>> pacientes = new ArrayList<>();
@@ -275,10 +278,6 @@ public class ServiceImpl implements Service {
         }
     }
 
-    // ==========================================================
-    // 🔹 MÉTODOS RESTANTES (Medicamentos, Recetas, Mensajes, etc.)
-    // ==========================================================
-    // ✅ Estos no cambian y puedes mantenerlos igual que los tienes ahora.
 
     @Override
     public void actualizarPaciente(Object pacienteObj) {
@@ -419,22 +418,18 @@ public class ServiceImpl implements Service {
 
             int idReceta;
 
-            // 📌 Insertar receta
             try (PreparedStatement stmtReceta = conn.prepareStatement(sqlReceta, Statement.RETURN_GENERATED_KEYS)) {
 
                 String idPaciente = (String) receta.get("id_paciente");
-                //String idMedico = (String) receta.get("id_medico");
-                String idMedico = "2222";
+                String idMedico = (String) receta.get("id_medico");
 
                 String fechaConfeccion = (String) receta.get("fechaConfeccion");
                 String fechaRetiro = (String) receta.get("fechaRetiro");
 
-                // Si no viene fecha de confección, usar la actual
                 if (fechaConfeccion == null || fechaConfeccion.isEmpty()) {
                     fechaConfeccion = new java.sql.Date(System.currentTimeMillis()).toString();
                 }
 
-                // Si fecha_retiro está vacía, se guarda como NULL
                 stmtReceta.setString(1, idPaciente);
                 stmtReceta.setString(2, idMedico);
                 stmtReceta.setString(3, fechaConfeccion);
@@ -458,7 +453,6 @@ public class ServiceImpl implements Service {
                 }
             }
 
-            // 📋 Insertar detalles
             try (PreparedStatement stmtDetalle = conn.prepareStatement(sqlDetalle)) {
                 for (Map<String, Object> detalle : detalles) {
                     stmtDetalle.setInt(1, idReceta);
@@ -472,7 +466,7 @@ public class ServiceImpl implements Service {
             }
 
             conn.commit();
-            System.out.println("✅ Receta y detalles guardados correctamente. ID receta: " + idReceta);
+            System.out.println("Receta y detalles guardados correctamente. ID receta: " + idReceta);
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -610,7 +604,9 @@ public class ServiceImpl implements Service {
             stmt.setString(3, texto);
             stmt.executeUpdate();
 
-            System.out.println("💬 Mensaje guardado de " + remitente + " para " + destinatario);
+            System.out.println("Mensaje guardado de " + remitente + " para " + destinatario);
+
+
         } catch (SQLException e) {
             System.err.println("Error al guardar mensaje: " + e.getMessage());
         }
@@ -672,5 +668,16 @@ public class ServiceImpl implements Service {
         }
 
         return usuarios;
+    }
+    @Override
+    public void limpiarUsuariosActivos() {
+        String sql = "UPDATE Usuario SET activo = FALSE";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
+            System.out.println("✅ Todos los usuarios marcados como inactivos");
+        } catch (SQLException e) {
+            System.err.println("Error limpiando usuarios activos: " + e.getMessage());
+        }
     }
 }

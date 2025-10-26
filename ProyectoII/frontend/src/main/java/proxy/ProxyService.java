@@ -17,15 +17,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-/**
- * ============================================================
- * 🧩 PROXY SERVICE
- * ------------------------------------------------------------
- * Clase intermedia entre el frontend (controladoras y vistas)
- * y el backend (ServerSocket - ClientHandler).
- * Envía solicitudes JSON y recibe respuestas JSON.
- * ============================================================
- */
 public class ProxyService {
     private Socket socket;
     private PrintWriter out;
@@ -39,9 +30,6 @@ public class ProxyService {
 
     private final ConcurrentHashMap<String, CompletableFuture<JSONObject>> pendingRequests = new ConcurrentHashMap<>();
 
-    // ==========================================================
-    // 🔹 CONSTRUCTOR Y CONEXIÓN AL BACKEND
-    // ==========================================================
     public ProxyService() {
         this(Config.BACKEND_HOST, Config.BACKEND_PORT);
     }
@@ -56,40 +44,40 @@ public class ProxyService {
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             conectado = true;
-            System.out.println("✅ Conectado al backend en " + host + ":" + port);
+            System.out.println("Conectado al backend en " + host + ":" + port);
             startNotificationListener();
         } catch (IOException e) {
             conectado = false;
-            System.err.println("❌ Error conectando al backend: " + e.getMessage());
+            System.err.println("Error conectando al backend: " + e.getMessage());
         }
     }
 
-    // ==========================================================
-    // 🔹 ESCUCHAR NOTIFICACIONES DEL SERVIDOR
-    // ==========================================================
     private void startNotificationListener() {
         Thread listenerThread = new Thread(() -> {
             try {
                 String inputLine;
                 while (conectado && (inputLine = in.readLine()) != null) {
-                    System.out.println("📨 Mensaje recibido: " + inputLine);
+                    System.out.println("Mensaje RAW del servidor: " + inputLine);
                     try {
                         JSONObject message = new JSONObject(inputLine);
                         if (message.has("requestId")) {
-                            // Respuesta a una solicitud
                             String requestId = message.getString("requestId");
                             CompletableFuture<JSONObject> future = pendingRequests.remove(requestId);
-                            if (future != null) future.complete(message);
+                            if (future != null) {
+                                future.complete(message);
+                                System.out.println("Respuesta a solicitud " + requestId);
+                            }
                         } else {
-                            // Notificación en tiempo real
+                            System.out.println("Notificación async recibida");
                             processAsyncNotification(message);
                         }
                     } catch (Exception e) {
-                        System.err.println("❌ Error procesando mensaje JSON: " + e.getMessage());
+                        System.err.println("Error procesando JSON: " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             } catch (IOException e) {
-                System.err.println("⚠️ Conexión perdida: " + e.getMessage());
+                System.err.println("Conexión perdida con el servidor: " + e.getMessage());
                 conectado = false;
                 attemptReconnection();
             }
@@ -113,13 +101,10 @@ public class ProxyService {
             Thread.sleep(5000);
             connectToBackend("localhost", Config.BACKEND_PORT);
         } catch (Exception e) {
-            System.err.println("❌ Error en reconexión: " + e.getMessage());
+            System.err.println("Error en reconexión: " + e.getMessage());
         }
     }
 
-    // ==========================================================
-    // 🔹 MÉTODO GENERAL PARA ENVIAR SOLICITUDES
-    // ==========================================================
     private JSONObject enviarSolicitud(JSONObject solicitud) {
         if (!conectado) {
             return crearError("No hay conexión con el servidor");
@@ -148,9 +133,7 @@ public class ProxyService {
         return error;
     }
 
-    // ==========================================================
-    // 🔐 AUTENTICACIÓN (Login, Logout, Cambio de Clave)
-    // ==========================================================
+
     public JSONObject login(String username, String password) {
         JSONObject request = new JSONObject();
         request.put("tipo", "login");
@@ -166,9 +149,9 @@ public class ProxyService {
             this.usuarioActual = response.optString("id", username);
             this.nombreUsuario = response.optString("nombre", username);
             this.tipoUsuario = response.optString("tipo", "admin").toLowerCase();
-            System.out.printf("🔐 Sesión iniciada: [%s] %s (%s)%n", tipoUsuario, nombreUsuario, usuarioActual);
+            System.out.printf("Sesión iniciada: [%s] %s (%s)%n", tipoUsuario, nombreUsuario, usuarioActual);
         } else {
-            System.err.println("⚠️ Error en login: " + response.optString("mensaje"));
+            System.err.println("Error en login: " + response.optString("mensaje"));
         }
         return response;
     }
@@ -208,9 +191,6 @@ public class ProxyService {
         return response;
     }
 
-    // ==========================================================
-    // 🧑‍⚕️ MÉDICOS
-    // ==========================================================
     public JSONObject obtenerMedicos() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_medicos"));
     }
@@ -223,13 +203,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "guardar_medico").put("datos", datos));
     }
 
-    public JSONObject actualizarMedico(String id, String nombre, String especialidad) {
-        JSONObject datos = new JSONObject();
-        datos.put("id", id);
-        datos.put("nombre", nombre);
-        datos.put("especialidad", especialidad);
-        return enviarSolicitud(new JSONObject().put("tipo", "actualizar_medico").put("datos", datos));
-    }
 
     public JSONObject eliminarMedico(String id) {
         JSONObject datos = new JSONObject();
@@ -237,9 +210,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "eliminar_medico").put("datos", datos));
     }
 
-    // ==========================================================
-    // 💊 FARMACÉUTICOS
-    // ==========================================================
     public JSONObject obtenerFarmaceuticos() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_farmaceuticos"));
     }
@@ -251,22 +221,12 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "guardar_farmaceutico").put("datos", datos));
     }
 
-    public JSONObject actualizarFarmaceutico(String id, String nombre) {
-        JSONObject datos = new JSONObject();
-        datos.put("id", id);
-        datos.put("nombre", nombre);
-        return enviarSolicitud(new JSONObject().put("tipo", "actualizar_farmaceutico").put("datos", datos));
-    }
-
     public JSONObject eliminarFarmaceutico(String id) {
         JSONObject datos = new JSONObject();
         datos.put("id", id);
         return enviarSolicitud(new JSONObject().put("tipo", "eliminar_farmaceutico").put("datos", datos));
     }
 
-    // ==========================================================
-    // 🧍 PACIENTES
-    // ==========================================================
     public JSONObject obtenerPacientes() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_pacientes"));
     }
@@ -280,14 +240,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "guardar_paciente").put("datos", datos));
     }
 
-    public JSONObject actualizarPaciente(String id, String nombre, String fechaNacimiento, String telefono) {
-        JSONObject datos = new JSONObject();
-        datos.put("id", id);
-        datos.put("nombre", nombre);
-        datos.put("fecha_nacimiento", fechaNacimiento);
-        datos.put("telefono", telefono);
-        return enviarSolicitud(new JSONObject().put("tipo", "actualizar_paciente").put("datos", datos));
-    }
 
     public JSONObject eliminarPaciente(String id) {
         JSONObject datos = new JSONObject();
@@ -295,9 +247,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "eliminar_paciente").put("datos", datos));
     }
 
-    // ==========================================================
-    // 💉 MEDICAMENTOS
-    // ==========================================================
     public JSONObject obtenerMedicamentos() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_medicamentos"));
     }
@@ -310,13 +259,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "guardar_medicamento").put("datos", datos));
     }
 
-    public JSONObject actualizarMedicamento(String codigo, String nombre, String presentacion) {
-        JSONObject datos = new JSONObject();
-        datos.put("codigo", codigo);
-        datos.put("nombre", nombre);
-        datos.put("presentacion", presentacion);
-        return enviarSolicitud(new JSONObject().put("tipo", "actualizar_medicamento").put("datos", datos));
-    }
 
     public JSONObject eliminarMedicamento(String codigo) {
         JSONObject datos = new JSONObject();
@@ -324,9 +266,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "eliminar_medicamento").put("datos", datos));
     }
 
-    // ==========================================================
-    // 📜 RECETAS MÉDICAS
-    // ==========================================================
     public JSONObject obtenerRecetas() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_recetas"));
     }
@@ -335,7 +274,6 @@ public class ProxyService {
                                     String fechaConfeccion, String fechaRetiro,
                                     List<?> detalles) {
         JSONObject datos = new JSONObject();
-        // 🔹 Usamos nombres exactos de columnas en la base de datos
         datos.put("id_paciente", idPaciente);
         datos.put("id_medico", idMedico);
         datos.put("fecha_confeccion", fechaConfeccion);
@@ -355,9 +293,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "actualizar_estado_receta").put("datos", datos));
     }
 
-    // ==========================================================
-    // 📊 DASHBOARD / ESTADÍSTICAS
-    // ==========================================================
     public JSONObject obtenerEstadisticas(String desde, String hasta, String medicamentoFiltro) {
         JSONObject datos = new JSONObject();
         datos.put("desde", desde);
@@ -368,9 +303,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_estadisticas").put("datos", datos));
     }
 
-    // ==========================================================
-    // 📨 USUARIOS CONECTADOS Y CHAT
-    // ==========================================================
     public JSONObject obtenerUsuariosConectados() {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_usuarios_conectados"));
     }
@@ -389,9 +321,6 @@ public class ProxyService {
         return enviarSolicitud(new JSONObject().put("tipo", "obtener_mensajes").put("datos", datos));
     }
 
-    // ==========================================================
-    // ⚙️ UTILIDADES
-    // ==========================================================
     public void cerrarConexion() {
         conectado = false;
         try {

@@ -55,10 +55,11 @@ public class ClientHandler implements Runnable {
             System.err.println("Error en ClientHandler: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            closeResources();
             if (username != null) {
+                service.logout(username);
                 server.notifyUserLogout(username);
             }
+            closeResources();
             server.removeClient(this);
         }
     }
@@ -130,20 +131,10 @@ public class ClientHandler implements Runnable {
         sendMessage(response);
     }
 
-    // --- Helpers unificados ---
     private String getStringVariant(JSONObject obj, String... posiblesNombres) {
         for (String nombre : posiblesNombres) {
             if (obj.has(nombre) && !obj.isNull(nombre)) {
                 return obj.getString(nombre);
-            }
-        }
-        return null;
-    }
-
-    private JSONArray getArrayVariant(JSONObject obj, String... posiblesNombres) {
-        for (String nombre : posiblesNombres) {
-            if (obj.has(nombre) && !obj.isNull(nombre)) {
-                return obj.getJSONArray(nombre);
             }
         }
         return null;
@@ -154,7 +145,6 @@ public class ClientHandler implements Runnable {
         response.put("mensaje", mensaje);
     }
 
-    // --- Handlers ---
     private void handleLogin(JSONObject datos, JSONObject response) {
         if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         String username = getStringVariant(datos, "username", "user");
@@ -176,9 +166,20 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleLogout(JSONObject datos, JSONObject response) {
-        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        if (datos == null) {
+            response.put("mensaje", "Datos faltantes");
+            sendMessage(response);
+            return;
+        }
+
         String username = getStringVariant(datos, "username", "user");
-        if (username == null) { response.put("mensaje", "Usuario faltante"); sendMessage(response); return; }
+        if (username == null) {
+            response.put("mensaje", "Usuario faltante");
+            sendMessage(response);
+            return;
+        }
+
+        service.logout(username);
 
         this.username = null;
         respondExito(response, "Logout exitoso");
@@ -235,7 +236,6 @@ public class ClientHandler implements Runnable {
         respondExito(response, "Médico eliminado exitosamente");
     }
 
-    // --- Farmaceuticos ---
     private void handleObtenerFarmaceuticos(JSONObject response) {
         List<?> farmaceuticos = service.obtenerFarmaceuticos();
         respondExito(response, "Farmacéuticos obtenidos");
@@ -268,7 +268,6 @@ public class ClientHandler implements Runnable {
         respondExito(response, "Farmacéutico eliminado exitosamente");
     }
 
-    // --- Pacientes ---
     private void handleObtenerPacientes(JSONObject response) {
         List<?> pacientes = service.obtenerPacientes();
         respondExito(response, "Pacientes obtenidos");
@@ -305,7 +304,6 @@ public class ClientHandler implements Runnable {
         respondExito(response, "Paciente eliminado exitosamente");
     }
 
-    // --- Medicamentos ---
     private void handleObtenerMedicamentos(JSONObject response) {
         List<?> medicamentos = service.obtenerMedicamentos();
         respondExito(response, "Medicamentos obtenidos");
@@ -341,35 +339,6 @@ public class ClientHandler implements Runnable {
     }
 
 
-    /**
-     * Devuelve el valor de un campo del JSONObject, buscando primero en camelCase
-     * y luego en snake_case.
-     */
-    private String getField(JSONObject obj, String camelCase, String snakeCase) {
-        if (obj.has(camelCase) && !obj.isNull(camelCase)) {
-            return obj.getString(camelCase);
-        } else if (obj.has(snakeCase) && !obj.isNull(snakeCase)) {
-            return obj.getString(snakeCase);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Devuelve un int de un campo de JSONObject, buscando camelCase y snake_case
-     */
-    private int getIntField(JSONObject obj, String camelCase, String snakeCase) {
-        if (obj.has(camelCase) && !obj.isNull(camelCase)) {
-            return obj.getInt(camelCase);
-        } else if (obj.has(snakeCase) && !obj.isNull(snakeCase)) {
-            return obj.getInt(snakeCase);
-        } else {
-            return -1; // valor por defecto si no existe
-        }
-    }
-
-
-
     private void handleGuardarReceta(JSONObject datos, JSONObject response) {
         try {
             if (datos == null) {
@@ -378,8 +347,6 @@ public class ClientHandler implements Runnable {
                 sendMessage(response);
                 return;
             }
-
-            // --- Leer ID paciente y médico como String ---
             String idPaciente = datos.optString("idPaciente", datos.optString("id_paciente", null));
             String idMedico = datos.optString("idMedico", datos.optString("id_medico", null));
 
@@ -390,7 +357,6 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            // --- Leer fechas ---
             String fechaConfeccion = datos.optString("fechaConfeccion", datos.optString("fecha_confeccion", null));
             if (fechaConfeccion == null || fechaConfeccion.isEmpty()) {
                 fechaConfeccion = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
@@ -401,14 +367,12 @@ public class ClientHandler implements Runnable {
                 fechaRetiro = null;
             }
 
-            // --- Preparar receta ---
             Map<String, Object> receta = new HashMap<>();
             receta.put("id_paciente", idPaciente);
             receta.put("id_medico", idMedico);
             receta.put("fechaConfeccion", fechaConfeccion);
             receta.put("fechaRetiro", fechaRetiro);
 
-            // --- Leer detalles ---
             JSONArray detallesArray = datos.optJSONArray("detalles");
             if (detallesArray == null || detallesArray.isEmpty()) {
                 response.put("estado", "error");
@@ -442,11 +406,9 @@ public class ClientHandler implements Runnable {
                 detalles.add(detalle);
             }
 
-            // --- Debug: imprimir receta antes de guardar ---
             System.out.println("Receta a guardar: " + receta);
             System.out.println("Detalles: " + detalles);
 
-            // --- Guardar receta ---
             service.guardarReceta(receta, detalles);
 
             response.put("estado", "éxito");
@@ -484,7 +446,6 @@ public class ClientHandler implements Runnable {
         respondExito(response, "Estado de receta actualizado exitosamente");
     }
 
-    // --- Estadísticas ---
     private void handleObtenerEstadisticas(JSONObject datos, JSONObject response) {
         if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
         String desdeStr = getStringVariant(datos, "desde");
@@ -511,19 +472,27 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // --- Mensajes ---
     private void handleEnviarMensaje(JSONObject datos, JSONObject response) {
-        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        if (datos == null) {
+            response.put("mensaje", "Datos faltantes");
+            sendMessage(response);
+            return;
+        }
+
         String remitente = getStringVariant(datos, "remitente");
         String destinatario = getStringVariant(datos, "destinatario");
         String texto = getStringVariant(datos, "texto");
+
         if (remitente == null || destinatario == null || texto == null) {
             response.put("mensaje", "Campos incompletos para enviar mensaje");
             sendMessage(response);
             return;
         }
+
         service.enviarMensaje(remitente, destinatario, texto);
         respondExito(response, "Mensaje enviado exitosamente");
+
+        server.notifyNewMessage(remitente, destinatario, texto);
     }
 
     private void handleObtenerMensajes(JSONObject datos, JSONObject response) {
@@ -541,12 +510,15 @@ public class ClientHandler implements Runnable {
         response.put("datos", new JSONArray(usuarios));
     }
 
-    // --- Envío de mensajes ---
     public void sendMessage(JSONObject message) {
         if (isConnected() && out != null) out.println(message.toString());
     }
 
     public boolean isConnected() {
         return socket != null && !socket.isClosed() && socket.isConnected();
+    }
+
+    public String getUsername() {
+        return username;
     }
 }

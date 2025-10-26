@@ -1,6 +1,7 @@
 package server;
 
 import config.Config;
+import org.jfree.data.json.impl.JSONObject;
 import service.Service;
 import dao.DatabaseConnection;
 import service.ServiceImpl;
@@ -8,10 +9,8 @@ import service.ServiceImpl;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Scanner;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class BackendServer {
     private static final int PORT = Config.SERVER_PORT;
@@ -22,16 +21,14 @@ public class BackendServer {
         this.clients = Collections.synchronizedList(new ArrayList<>());
         DatabaseConnection.setPassword(dbPassword);
         this.service = new ServiceImpl();
+
+        this.service.limpiarUsuariosActivos();
     }
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-
-        System.out.println("CONFIGURACIÓN DE BASE DE DATOS");
         System.out.print("Ingresa la contraseña de MySQL: ");
         String password = scanner.nextLine();
-
-        System.out.println("Conectando a la base de datos...");
 
         try {
             DatabaseConnection.setPassword(password);
@@ -55,9 +52,6 @@ public class BackendServer {
 
     public void start() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("Backend Server iniciado en puerto " + PORT);
-            System.out.println("Esperando conexiones de frontend...");
-
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
@@ -115,6 +109,39 @@ public class BackendServer {
 
         broadcastToAll(notification);
         System.out.println("Notificando desconexión de: " + username);
+    }
+
+    public void notifyNewMessage(String remitente, String destinatario, String texto) {
+        ClientHandler destHandler = findClientByUsername(destinatario);
+
+        if (destHandler != null && destHandler.isConnected()) {
+            org.json.JSONObject notification = new org.json.JSONObject();
+            notification.put("tipo", "notificacion");
+            notification.put("subtipo", "mensaje_recibido");
+
+            JSONObject datosNotif = new JSONObject();
+            datosNotif.put("remitente", remitente);
+            datosNotif.put("destinatario", destinatario);
+            datosNotif.put("texto", texto);
+            datosNotif.put("fecha", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+            notification.put("datos", datosNotif);
+
+            destHandler.sendMessage(notification);
+            System.out.println("Notificación de mensaje enviada a: " + destinatario);
+        } else {
+            System.out.println("ℹDestinatario " + destinatario + " no conectado, mensaje guardado para luego");
+        }
+    }
+
+    private ClientHandler findClientByUsername(String username) {
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                if (username.equals(client.getUsername())) {
+                    return client;
+                }
+            }
+        }
+        return null;
     }
 }
 

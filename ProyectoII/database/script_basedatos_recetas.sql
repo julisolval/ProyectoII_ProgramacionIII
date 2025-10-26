@@ -1,9 +1,7 @@
--- ELIMINAR BASE DE DATOS EXISTENTE Y CREAR NUEVA
 DROP DATABASE IF EXISTS recetas_medicas;
 CREATE DATABASE recetas_medicas;
 USE recetas_medicas;
 
--- Crear tablas con nombres en MINÚSCULAS
 CREATE TABLE usuario (
     id VARCHAR(20) PRIMARY KEY,
     clave VARCHAR(100) NOT NULL,
@@ -48,7 +46,6 @@ CREATE TABLE detallereceta (
     FOREIGN KEY (codigo_medicamento) REFERENCES medicamento(codigo)
 );
 
--- Insertar FARMACÉUTICOS
 INSERT INTO usuario (id, clave, nombre, tipo, especialidad) VALUES
     ('5555', '5555', 'Benjamin', 'FARMACEUTA', NULL),
     ('4567', '4567', 'Sebastian', 'FARMACEUTA', NULL),
@@ -56,7 +53,6 @@ INSERT INTO usuario (id, clave, nombre, tipo, especialidad) VALUES
     ('9090', '9090', 'Ale', 'FARMACEUTA', NULL),
     ('2211', '2211', 'Mario', 'FARMACEUTA', NULL);
 
--- Insertar MÉDICOS
 INSERT INTO usuario (id, clave, nombre, tipo, especialidad) VALUES
     ('1111', '2222', 'Isaac', 'MEDICO', 'Cardiologia'),
     ('2222', '2222', 'Julissa', 'MEDICO', 'Dermatologia'),
@@ -64,17 +60,14 @@ INSERT INTO usuario (id, clave, nombre, tipo, especialidad) VALUES
     ('7777', '7777', 'Jose', 'MEDICO', 'General'),
     ('1122', '1122', 'Pablo', 'MEDICO', 'Forense');
 
--- Insertar ADMINISTRADOR
 INSERT INTO usuario (id, clave, nombre, tipo, especialidad) VALUES
     ('admin', 'admin', 'Administrador', 'ADMIN', NULL);
 
--- Insertar PACIENTES
 INSERT INTO paciente (id, nombre, fecha_nacimiento, telefono) VALUES
     ('6666', 'Andrea', '2024-02-08', '1111-1111'),
     ('6789', 'Antonio', '2025-09-03', '2222-2222'),
     ('2233', 'Maria', '2025-09-02', '3333-3333');
 
--- Insertar MEDICAMENTOS
 INSERT INTO medicamento (codigo, nombre, presentacion) VALUES
     ('1111', 'Ibuprofeno', '250.0'),
     ('2222', 'Panadol', '2.3'),
@@ -91,7 +84,7 @@ CREATE TABLE receta (
     FOREIGN KEY (id_paciente) REFERENCES paciente(id),
     FOREIGN KEY (id_medico) REFERENCES usuario(id)
 );
--- Insertar DETALLES DE RECETAS
+
 INSERT INTO detallereceta (id_receta, codigo_medicamento, cantidad, indicaciones, duracion) VALUES
     (1, '1111', 1, 'Cada 12 horas', 8),
     (2, '1111', 1, 'Cada 12 horas', 8),
@@ -99,7 +92,6 @@ INSERT INTO detallereceta (id_receta, codigo_medicamento, cantidad, indicaciones
     (4, '4444', 2, 'Cada 8 horas', 3),
     (5, '1111', 4, 'Tarde', 4);
 
--- VERIFICACIÓN FINAL
 SELECT '=== TABLAS CREADAS ===' as '';
 SHOW TABLES;
 

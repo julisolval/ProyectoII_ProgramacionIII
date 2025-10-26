@@ -1,4 +1,5 @@
 package main.java.Vista;
+import main.java.Controlador.ControladorUsuariosActivos;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -8,6 +9,7 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.swing.table.TableColumnModel;
+
 
 public class Interfaz {
     private JFrame frame;
@@ -69,14 +71,14 @@ public class Interfaz {
     private JTable tblRecetas, tblDetalles;
     private JButton btnPonerProceso, btnMarcarLista, btnEntregar;
     private JLabel lblEstadoSeleccionado, lblFechaRetiro;
+    private ControladorUsuariosActivos controladorUsuarios;
 
-
+    public void setControladorUsuarios(ControladorUsuariosActivos controlador) {
+        this.controladorUsuarios = controlador;
+    }
 
     public Interfaz() { crearInterfaz(); }
 
-    public DefaultListModel<String> getUsersListModel() {
-        return usersListModel;
-    }
 
     public JList<String> getUsersList() {
         return usersList;
@@ -90,16 +92,8 @@ public class Interfaz {
         return btnReceiveMessages;
     }
 
-    public JLabel getLblActiveUsers() {
-        return lblActiveUsers;
-    }
-
-    public JPanel getUsersPanel() {
-        return usersPanel;
-    }
 
     public JFrame getFrame() { return frame; }
-    public JTabbedPane getTabbedPane() { return tabbedPane; }
 
     public JButton getBtnReporte() {return btnReporte;}
     public JTextField getTxtIdMedico() { return txtIdMedico; }
@@ -112,84 +106,6 @@ public class Interfaz {
     public JButton getBtnBorrar() { return btnBorrar; }
     public JButton getBtnBuscar() { return btnBuscar; }
     public JTable getTablaMedicos() { return tablaMedicos; }
-
-    // ==================================================
-// MÉTODOS FALTANTES - AGREGAR AL FINAL DE LA CLASE Interfaz
-// ==================================================
-
-    // Para Dashboard - Mapear a componentes existentes
-    public JButton getBtnGenerarReporte() {
-        return btnGenerarDashboard; // Usar el botón existente
-    }
-
-    public JButton getBtnReporteRapido() {
-        return btnGenerarDashboard; // Usar el mismo botón por ahora
-    }
-
-    public JTextField getDateHastaDashboard() {
-        // Crear campo temporal (no se usará realmente)
-        JTextField temp = new JTextField();
-        temp.setVisible(false);
-        return temp;
-    }
-
-    public JTextField getDateDesdeDashboard() {
-        // Crear campo temporal (no se usará realmente)
-        JTextField temp = new JTextField();
-        temp.setVisible(false);
-        return temp;
-    }
-
-    public JTextField getTxtMedicamentoFiltro() {
-        return txtFiltroDash; // Usar el campo existente
-    }
-
-    public JLabel getLblConfeccionadas() {
-        // Crear label temporal
-        JLabel label = new JLabel("0");
-        label.setVisible(false);
-        return label;
-    }
-
-    public JLabel getLblProceso() {
-        JLabel label = new JLabel("0");
-        label.setVisible(false);
-        return label;
-    }
-
-    public JLabel getLblListas() {
-        JLabel label = new JLabel("0");
-        label.setVisible(false);
-        return label;
-    }
-
-    public JLabel getLblEntregadas() {
-        JLabel label = new JLabel("0");
-        label.setVisible(false);
-        return label;
-    }
-
-    public JLabel getLblTotalRecetas() {
-        JLabel label = new JLabel("0");
-        label.setVisible(false);
-        return label;
-    }
-
-    // Para Histórico - Mapear a componentes existentes
-    public JButton getBtnLimpiarFiltro() {
-        return btnLimpiarHistorico; // Usar el botón existente
-    }
-
-    public JButton getBtnVerDetalles() {
-        // Crear botón temporal
-        JButton btn = new JButton("Ver Detalles");
-        btn.setVisible(false);
-        return btn;
-    }
-
-    public JTable getTablaHistorico() {
-        return tblHistoricoRecetas; // Mapear a la tabla existente
-    }
 
     public JTextField getTxtIdFarmaceutico() { return txtIdFarmaceutico; }
     public JTextField getTxtNombreFarmaceutico(){ return txtNombreFarmaceutico; }
@@ -239,32 +155,25 @@ public class Interfaz {
     public JButton getBtnDescartarMedicamentoPrescripcion() { return btnDescartarMedicamentoPrescripcion; }
 
     public JButton getBtnGenerarDashboard() { return btnGenerarDashboard; }
-    public JPanel getPanelPastelDashboard() { return panelPastelDashboard; }
-    public JPanel getPanelLineaDashboard()  { return panelLineaDashboard; }
     public JComboBox<String> getCmbMesDesde() { return cmbMesDesde; }
     public JComboBox<String> getCmbMesHasta() { return cmbMesHasta; }
     public JSpinner getSpAnioDesde() { return spAnioDesde; }
     public JSpinner getSpAnioHasta() { return spAnioHasta; }
     public JTextField getTxtFiltroDash() { return txtFiltroDash; }
-    public JTable getTblDashMeds() { return tblDashMeds; }
 
     public JTextField getTxtBusquedaHistorico() { return txtBusquedaHistorico; }
     public JButton getBtnBuscarHistorico() { return btnBuscarHistorico; }
     public JButton getBtnLimpiarHistorico() { return btnLimpiarHistorico; }
     public JTable getTblHistoricoRecetas() { return tblHistoricoRecetas; }
-    public JTextArea getTxtDetallesHistorico() { return txtDetallesHistorico; }
 
     public JTextField getTfCedulaPaciente() { return tfCedulaPaciente; }
     public JTextField getTfNombrePaciente() { return tfNombrePaciente; }
     public JButton getBtnBuscarRecetas() { return btnBuscarRecetas; }
     public JButton getBtnLimpiarRecetas() { return btnLimpiarRecetas; }
     public JTable getTblRecetas() { return tblRecetas; }
-    public JTable getTblDetalles() { return tblDetalles; }
     public JButton getBtnPonerProceso() { return btnPonerProceso; }
     public JButton getBtnMarcarLista() { return btnMarcarLista; }
     public JButton getBtnEntregar() { return btnEntregar; }
-    public JLabel getLblEstadoSeleccionado() { return lblEstadoSeleccionado; }
-    public JLabel getLblFechaRetiro() { return lblFechaRetiro; }
 
     public void mostrar() { frame.setVisible(true); }
 
@@ -307,8 +216,6 @@ public class Interfaz {
         panelPrincipal.add(usersPanel, BorderLayout.EAST);
         panelPrincipal.add(tabbedPane, BorderLayout.CENTER);
 
-        //frame.add(panelPrincipal);
-
         frame.getContentPane().setBackground(new Color(245, 248, 255));
         frame.add(panelPrincipal);
 
@@ -328,7 +235,6 @@ public class Interfaz {
         panel.setPreferredSize(new Dimension(250, 0));
         panel.setBackground(new Color(245, 248, 255));
 
-        // 🔹 Lista de usuarios conectados
         usersListModel = new DefaultListModel<>();
         usersList = new JList<>(usersListModel);
         usersList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -336,13 +242,11 @@ public class Interfaz {
         usersList.setBorder(BorderFactory.createLineBorder(new Color(220, 220, 230)));
         JScrollPane scrollUsuarios = new JScrollPane(usersList);
 
-        // 🔹 Etiqueta superior
         lblActiveUsers = new JLabel("0 usuarios conectados", SwingConstants.CENTER);
         lblActiveUsers.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblActiveUsers.setForeground(new Color(60, 60, 60));
         lblActiveUsers.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
-        // 🔹 Panel de botones inferior
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         btnSendMessage = new JButton("Enviar");
         btnReceiveMessages = new JButton("Recibir");
@@ -1018,13 +922,36 @@ public class Interfaz {
     public void actualizarUsuariosConectados(java.util.List<String> usuarios) {
         SwingUtilities.invokeLater(() -> {
             usersListModel.clear();
-            for (String user : usuarios) {
-                usersListModel.addElement(user);
+
+            int usuariosFiltrados = 0;
+            String usuarioActual = "";
+
+            try {
+                if (controladorUsuarios != null) {
+                    usuarioActual = controladorUsuarios.getUsuarioActual();
+                    System.out.println("Usuario actual para filtrar: " + usuarioActual);
+                }
+            } catch (Exception e) {
+                System.err.println("Error obteniendo usuario actual: " + e.getMessage());
             }
-            lblActiveUsers.setText(usuarios.size() + " usuarios conectados");
+
+            for (String user : usuarios) {
+                if (user != null && !user.trim().isEmpty() &&
+                        !"null".equals(user) && !user.equals(usuarioActual) &&
+                        !user.contains(usuarioActual + " -")) {
+
+                    usersListModel.addElement(user);
+                    usuariosFiltrados++;
+                    System.out.println("Agregando usuario conectado: " + user);
+                } else {
+                    System.out.println("Filtrando usuario: " + user);
+                }
+            }
+
+            lblActiveUsers.setText(usuariosFiltrados + " usuarios conectados");
+            System.out.println("Total usuarios conectados mostrados: " + usuariosFiltrados);
         });
     }
-
 
 
 

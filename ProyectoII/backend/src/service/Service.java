@@ -6,7 +6,6 @@ import java.util.Map;
 
 public interface Service {
 
-    // 🔹 Ahora devuelve un Map con los datos del usuario
     Map<String, Object> login(String username, String password);
 
     boolean cambiarClave(String username, String oldPassword, String newPassword);
@@ -40,4 +39,8 @@ public interface Service {
     void enviarMensaje(String remitente, String destinatario, String texto);
     List<?> obtenerMensajes(String usuario);
     List<String> obtenerUsuariosConectados();
+
+    void logout(String username);
+
+    void limpiarUsuariosActivos();
 }
