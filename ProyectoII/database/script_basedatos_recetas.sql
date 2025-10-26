@@ -2,6 +2,25 @@ DROP DATABASE IF EXISTS recetas_medicas;
 CREATE DATABASE recetas_medicas;
 USE recetas_medicas;
 
+CREATE TABLE IF NOT EXISTS mensaje (
+                                       id INT AUTO_INCREMENT PRIMARY KEY,
+                                       remitente VARCHAR(20) NOT NULL,
+                                       destinatario VARCHAR(20) NOT NULL,
+                                       texto TEXT NOT NULL,
+                                       fecha_envio DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                       leido BOOLEAN DEFAULT FALSE,
+                                       FOREIGN KEY (remitente) REFERENCES usuario(id),
+                                       FOREIGN KEY (destinatario) REFERENCES usuario(id)
+);
+
+-- Índices para mejorar rendimiento
+CREATE INDEX idx_destinatario ON mensaje(destinatario);
+CREATE INDEX idx_remitente ON mensaje(remitente);
+CREATE INDEX idx_fecha ON mensaje(fecha_envio);
+
+SELECT '=== TABLA MENSAJES CREADA ===' as '';
+DESCRIBE mensaje;
+
 CREATE TABLE usuario (
     id VARCHAR(20) PRIMARY KEY,
     clave VARCHAR(100) NOT NULL,

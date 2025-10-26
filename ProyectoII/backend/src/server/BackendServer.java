@@ -9,6 +9,10 @@ import service.ServiceImpl;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -114,22 +118,37 @@ public class BackendServer {
     public void notifyNewMessage(String remitente, String destinatario, String texto) {
         ClientHandler destHandler = findClientByUsername(destinatario);
 
+        // ✅ Buscar nombre del remitente
+        String nombreRemitente = remitente;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = "SELECT nombre FROM Usuario WHERE id = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, remitente);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                nombreRemitente = rs.getString("nombre");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error obteniendo nombre remitente: " + e.getMessage());
+        }
+
         if (destHandler != null && destHandler.isConnected()) {
             org.json.JSONObject notification = new org.json.JSONObject();
             notification.put("tipo", "notificacion");
             notification.put("subtipo", "mensaje_recibido");
 
-            JSONObject datosNotif = new JSONObject();
+            org.json.JSONObject datosNotif = new org.json.JSONObject();
             datosNotif.put("remitente", remitente);
+            datosNotif.put("nombre_remitente", nombreRemitente);
             datosNotif.put("destinatario", destinatario);
             datosNotif.put("texto", texto);
             datosNotif.put("fecha", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
             notification.put("datos", datosNotif);
 
             destHandler.sendMessage(notification);
-            System.out.println("Notificación de mensaje enviada a: " + destinatario);
+            System.out.println("✅ Notificación enviada a: " + destinatario);
         } else {
-            System.out.println("ℹDestinatario " + destinatario + " no conectado, mensaje guardado para luego");
+            System.out.println("ℹ️ Destinatario " + destinatario + " no conectado, mensaje guardado");
         }
     }
 

@@ -46,31 +46,47 @@ public class ControladorUsuariosActivos {
     }
 
     private void enviarMensaje() {
-        String destinatario = vista.getUsersList().getSelectedValue();
-        if (destinatario == null) {
+        String usuarioSeleccionado = vista.getUsersList().getSelectedValue();
+        if (usuarioSeleccionado == null) {
             JOptionPane.showMessageDialog(vista.getFrame(),
                     "Seleccione un usuario para enviar el mensaje.",
                     "Atención", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
+        // ✅ EXTRAER SOLO EL ID (antes del " - ")
+        String destinatarioId = usuarioSeleccionado.split(" - ")[0].trim();
+
         String mensaje = JOptionPane.showInputDialog(vista.getFrame(),
-                "Escriba el mensaje para " + destinatario + ":",
+                "Escriba el mensaje para " + usuarioSeleccionado + ":",
                 "Enviar mensaje", JOptionPane.PLAIN_MESSAGE);
 
         if (mensaje == null || mensaje.trim().isEmpty()) return;
 
-        JSONObject respuesta = proxyService.enviarMensaje(destinatario, mensaje);
+        // ✅ Enviar con el ID correcto
+        new Thread(() -> {
+            try {
+                JSONObject respuesta = proxyService.enviarMensaje(destinatarioId, mensaje);
 
-        if ("éxito".equalsIgnoreCase(respuesta.optString("estado"))) {
-            JOptionPane.showMessageDialog(vista.getFrame(),
-                    "Mensaje enviado correctamente.",
-                    "Éxito", JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(vista.getFrame(),
-                    "Error al enviar mensaje: " + respuesta.optString("mensaje"),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-        }
+                SwingUtilities.invokeLater(() -> {
+                    if ("éxito".equalsIgnoreCase(respuesta.optString("estado"))) {
+                        JOptionPane.showMessageDialog(vista.getFrame(),
+                                "Mensaje enviado correctamente.",
+                                "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(vista.getFrame(),
+                                "Error al enviar mensaje: " + respuesta.optString("mensaje"),
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(vista.getFrame(),
+                            "Error: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }).start();
     }
 
     private void recibirMensajes() {
@@ -82,39 +98,99 @@ public class ControladorUsuariosActivos {
             return;
         }
 
-        JSONObject respuesta = proxyService.obtenerMensajes(usuarioActual);
+        new Thread(() -> {
+            try {
+                JSONObject respuesta = proxyService.obtenerMensajes(usuarioActual);
 
-        if (!"éxito".equalsIgnoreCase(respuesta.optString("estado"))) {
-            JOptionPane.showMessageDialog(vista.getFrame(),
-                    "Error al obtener mensajes: " + respuesta.optString("mensaje"),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+                SwingUtilities.invokeLater(() -> {
+                    if (!"éxito".equalsIgnoreCase(respuesta.optString("estado"))) {
+                        JOptionPane.showMessageDialog(vista.getFrame(),
+                                "Error al obtener mensajes: " + respuesta.optString("mensaje"),
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
 
-        JSONArray mensajes = respuesta.optJSONArray("datos");
-        if (mensajes == null || mensajes.isEmpty()) {
-            JOptionPane.showMessageDialog(vista.getFrame(),
-                    "No hay mensajes nuevos.",
-                    "Información", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
+                    JSONArray mensajes = respuesta.optJSONArray("datos");
+                    if (mensajes == null || mensajes.isEmpty()) {
+                        JOptionPane.showMessageDialog(vista.getFrame(),
+                                "No hay mensajes nuevos.",
+                                "Información", JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
 
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < mensajes.length(); i++) {
-            JSONObject msg = mensajes.getJSONObject(i);
-            sb.append("De: ").append(msg.optString("remitente"))
-                    .append("\nMensaje: ").append(msg.optString("texto"))
-                    .append("\n───────────────\n");
-        }
+                    // ✅ MEJORAR LA PRESENTACIÓN
+                    StringBuilder sb = new StringBuilder("<html><body style='width: 350px; font-family: Arial;'>");
+                    for (int i = 0; i < mensajes.length(); i++) {
+                        JSONObject msg = mensajes.getJSONObject(i);
+                        String remitente = msg.optString("remitente");
+                        String nombreRemitente = msg.optString("nombre_remitente", remitente);
+                        String texto = msg.optString("texto");
+                        String fecha = msg.optString("fecha_envio", "");
 
-        JTextArea area = new JTextArea(sb.toString());
-        area.setEditable(false);
-        area.setFont(new java.awt.Font("Consolas", java.awt.Font.PLAIN, 12));
-        JScrollPane scroll = new JScrollPane(area);
-        scroll.setPreferredSize(new java.awt.Dimension(400, 250));
+                        sb.append("<div style='border: 1px solid #ccc; padding: 10px; margin: 5px 0; background: #f9f9f9;'>");
+                        sb.append("<b>De:</b> ").append(nombreRemitente).append(" (").append(remitente).append(")<br>");
+                        sb.append("<b>Fecha:</b> ").append(fecha).append("<br>");
+                        sb.append("<b>Mensaje:</b><br>").append(texto);
+                        sb.append("</div>");
+                    }
+                    sb.append("</body></html>");
 
-        JOptionPane.showMessageDialog(vista.getFrame(), scroll,
-                "Mensajes recibidos", JOptionPane.INFORMATION_MESSAGE);
+                    JLabel label = new JLabel(sb.toString());
+                    JScrollPane scroll = new JScrollPane(label);
+                    scroll.setPreferredSize(new Dimension(400, 300));
+
+                    JOptionPane.showMessageDialog(vista.getFrame(), scroll,
+                            "Mensajes recibidos (" + mensajes.length() + ")", JOptionPane.INFORMATION_MESSAGE);
+                });
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(vista.getFrame(),
+                            "Error: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }).start();
+    }
+
+    private void mostrarMensajeRecibido(String remitente, String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            JDialog dialog = new JDialog(vista.getFrame(), "💬 Nuevo mensaje", false);
+            dialog.setLayout(new BorderLayout(10, 10));
+            dialog.setSize(450, 220);
+            dialog.setLocationRelativeTo(vista.getFrame());
+
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+            JLabel lblRemitente = new JLabel("📩 Mensaje de: " + remitente);
+            lblRemitente.setFont(new Font("Arial", Font.BOLD, 14));
+
+            JTextArea txtMensaje = new JTextArea(mensaje, 5, 35);
+            txtMensaje.setWrapStyleWord(true);
+            txtMensaje.setLineWrap(true);
+            txtMensaje.setEditable(false);
+            txtMensaje.setBackground(new Color(245, 245, 245));
+            txtMensaje.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8)
+            ));
+
+            JButton btnCerrar = new JButton("Cerrar");
+            btnCerrar.addActionListener(e -> dialog.dispose());
+
+            panel.add(lblRemitente, BorderLayout.NORTH);
+            panel.add(new JScrollPane(txtMensaje), BorderLayout.CENTER);
+
+            JPanel panelSur = new JPanel(new FlowLayout());
+            panelSur.add(btnCerrar);
+            panel.add(panelSur, BorderLayout.SOUTH);
+
+            dialog.add(panel);
+            dialog.setVisible(true);
+
+            // ✅ Sonido de notificación (opcional)
+            Toolkit.getDefaultToolkit().beep();
+        });
     }
 
     public void actualizarUsuarios() {
@@ -203,41 +279,6 @@ public class ControladorUsuariosActivos {
                 System.out.println("Notificación desconocida: " + subtipo);
                 break;
         }
-    }
-
-    private void mostrarMensajeRecibido(String remitente, String mensaje) {
-        SwingUtilities.invokeLater(() -> {
-            JDialog dialog = new JDialog(vista.getFrame(), "Nuevo mensaje", false);
-            dialog.setLayout(new BorderLayout(10, 10));
-            dialog.setSize(400, 200);
-            dialog.setLocationRelativeTo(vista.getFrame());
-
-            JPanel panel = new JPanel(new BorderLayout(10, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-            JLabel lblRemitente = new JLabel("Mensaje de: " + remitente);
-            lblRemitente.setFont(new Font("Arial", Font.BOLD, 14));
-
-            JTextArea txtMensaje = new JTextArea(mensaje, 4, 30);
-            txtMensaje.setWrapStyleWord(true);
-            txtMensaje.setLineWrap(true);
-            txtMensaje.setEditable(false);
-            txtMensaje.setBackground(new Color(245, 245, 245));
-            txtMensaje.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
-
-            JButton btnCerrar = new JButton("Cerrar");
-            btnCerrar.addActionListener(e -> dialog.dispose());
-
-            panel.add(lblRemitente, BorderLayout.NORTH);
-            panel.add(new JScrollPane(txtMensaje), BorderLayout.CENTER);
-
-            JPanel panelSur = new JPanel(new FlowLayout());
-            panelSur.add(btnCerrar);
-            panel.add(panelSur, BorderLayout.SOUTH);
-
-            dialog.add(panel);
-            dialog.setVisible(true);
-        });
     }
 
     public String getUsuarioActual() {
