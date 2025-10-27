@@ -347,8 +347,10 @@ public class ClientHandler implements Runnable {
                 sendMessage(response);
                 return;
             }
-            String idPaciente = datos.optString("idPaciente", datos.optString("id_paciente", null));
-            String idMedico = datos.optString("idMedico", datos.optString("id_medico", null));
+            String idPacienteRaw = datos.optString("idPaciente", datos.optString("id_paciente", null));
+
+            String idPaciente = (idPacienteRaw != null) ? idPacienteRaw.split(" - ")[0].trim() : null;
+            String idMedico =this.username;
 
             if (idPaciente == null || idMedico == null) {
                 response.put("estado", "error");
@@ -433,18 +435,33 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleActualizarEstadoReceta(JSONObject datos, JSONObject response) {
-        if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }
+        if (datos == null) {
+            response.put("mensaje", "Datos faltantes");
+            sendMessage(response);
+            return;
+        }
+
         int idReceta = datos.optInt("idReceta", -1);
         String nuevoEstado = getStringVariant(datos, "nuevoEstado", "nuevo_estado");
-        String idFarmaceutico = getStringVariant(datos, "idFarmaceutico", "id_farmaceutico");
+        String idFarmaceutico = this.username;
+
         if (idReceta == -1 || nuevoEstado == null || idFarmaceutico == null) {
             response.put("mensaje", "Campos incompletos para actualizar estado de receta");
             sendMessage(response);
             return;
         }
-        service.actualizarEstadoReceta(idReceta, nuevoEstado, idFarmaceutico);
-        respondExito(response, "Estado de receta actualizado exitosamente");
+
+        try {
+            service.actualizarEstadoReceta(idReceta, nuevoEstado, idFarmaceutico);
+            respondExito(response, "Estado de receta actualizado exitosamente");
+        } catch (Exception e) {
+            response.put("estado", "error");
+            response.put("mensaje", e.getMessage());
+        }
+
+        sendMessage(response);
     }
+
 
     private void handleObtenerEstadisticas(JSONObject datos, JSONObject response) {
         if (datos == null) { response.put("mensaje", "Datos faltantes"); sendMessage(response); return; }

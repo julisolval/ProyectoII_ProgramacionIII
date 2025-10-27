@@ -423,6 +423,7 @@ public class ServiceImpl implements Service {
                 String idPaciente = (String) receta.get("id_paciente");
                 String idMedico = (String) receta.get("id_medico");
 
+
                 String fechaConfeccion = (String) receta.get("fechaConfeccion");
                 String fechaRetiro = (String) receta.get("fechaRetiro");
 
@@ -511,20 +512,40 @@ public class ServiceImpl implements Service {
 
     @Override
     public void actualizarEstadoReceta(int idReceta, String nuevoEstado, String idFarmaceutico) {
-        String sql = "UPDATE Receta SET estado = ? WHERE id = ?";
+        String sqlSelect = "SELECT id_farmaceutico FROM Receta WHERE id = ?";
+        String sqlUpdate = "UPDATE Receta SET estado = ?, id_farmaceutico = ? WHERE id = ?";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
 
-            stmt.setString(1, nuevoEstado);
-            stmt.setInt(2, idReceta);
-            stmt.executeUpdate();
+            // Verificar si el mismo farmacéutico intenta repetir
+            try (PreparedStatement stmtSelect = conn.prepareStatement(sqlSelect)) {
+                stmtSelect.setInt(1, idReceta);
+                ResultSet rs = stmtSelect.executeQuery();
+                if (rs.next()) {
+                    String actualFarm = rs.getString("id_farmaceutico");
+                    if (actualFarm != null && actualFarm.equals(idFarmaceutico)) {
+                        throw new SQLException("El mismo farmacéutico no puede realizar dos acciones seguidas.");
+                    }
+                }
+            }
+
+            // Actualizar estado y registrar quién hizo el cambio
+            try (PreparedStatement stmt = conn.prepareStatement(sqlUpdate)) {
+                stmt.setString(1, nuevoEstado);
+                stmt.setString(2, idFarmaceutico);
+                stmt.setInt(3, idReceta);
+                stmt.executeUpdate();
+            }
+
+            System.out.println("✅ Receta #" + idReceta + " actualizada a estado: " + nuevoEstado +
+                    " por farmacéutico: " + idFarmaceutico);
 
         } catch (SQLException e) {
             System.err.println("Error actualizando estado receta: " + e.getMessage());
-            throw new RuntimeException("Error al actualizar estado de receta: " + e.getMessage());
+            throw new RuntimeException(e.getMessage());
         }
     }
+
 
     @Override
     public Map<String, Object> obtenerEstadisticas(Date desde, Date hasta, String medicamentoFiltro) {
