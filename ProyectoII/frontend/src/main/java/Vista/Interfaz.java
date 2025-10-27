@@ -953,6 +953,17 @@ public class Interfaz {
         });
     }
 
+    public JPanel getPanelPastelDashboard() {
+        return panelPastelDashboard;
+    }
+
+    public JPanel getPanelLineaDashboard() {
+        return panelLineaDashboard;
+    }
+
+    public JTable getTblDashMeds() {
+        return tblDashMeds;
+    }
 
 
 

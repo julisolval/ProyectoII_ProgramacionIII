@@ -546,66 +546,107 @@ public class ServiceImpl implements Service {
         }
     }
 
-
     @Override
     public Map<String, Object> obtenerEstadisticas(Date desde, Date hasta, String medicamentoFiltro) {
         Map<String, Object> stats = new HashMap<>();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sqlRecetas = "SELECT estado, COUNT(*) as cantidad FROM Receta WHERE fecha_confeccion BETWEEN ? AND ? GROUP BY estado";
-            PreparedStatement stmtRecetas = conn.prepareStatement(sqlRecetas);
-            stmtRecetas.setString(1, sdf.format(desde));
-            stmtRecetas.setString(2, sdf.format(hasta));
 
-            ResultSet rsRecetas = stmtRecetas.executeQuery();
-            int confeccionadas = 0, proceso = 0, lista = 0, entregadas = 0;
+            // ==========================
+            // 🔹 Gráfico pastel: recetas por estado
+            // ==========================
+            String sqlEstados = "SELECT estado, COUNT(*) as cantidad " +
+                    "FROM Receta WHERE fecha_confeccion BETWEEN ? AND ? GROUP BY estado";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlEstados)) {
+                stmt.setString(1, sdf.format(desde));
+                stmt.setString(2, sdf.format(hasta));
+                ResultSet rs = stmt.executeQuery();
 
-            while (rsRecetas.next()) {
-                String estado = rsRecetas.getString("estado");
-                int cantidad = rsRecetas.getInt("cantidad");
-                switch (estado) {
-                    case "CONFECCIONADA": confeccionadas = cantidad; break;
-                    case "PROCESO": proceso = cantidad; break;
-                    case "LISTA": lista = cantidad; break;
-                    case "ENTREGADA": entregadas = cantidad; break;
+                int confeccionadas = 0, proceso = 0, lista = 0, entregadas = 0;
+                while (rs.next()) {
+                    switch (rs.getString("estado")) {
+                        case "CONFECCIONADA": confeccionadas = rs.getInt("cantidad"); break;
+                        case "PROCESO": proceso = rs.getInt("cantidad"); break;
+                        case "LISTA": lista = rs.getInt("cantidad"); break;
+                        case "ENTREGADA": entregadas = rs.getInt("cantidad"); break;
+                    }
+                }
+                stats.put("confeccionadas", confeccionadas);
+                stats.put("proceso", proceso);
+                stats.put("lista", lista);
+                stats.put("entregadas", entregadas);
+            }
+
+            // ==========================
+            // 🔹 Gráfico lineal: medicamentos por mes
+            // ==========================
+            List<String> etiquetasMes = new ArrayList<>();
+            List<String> nombresMed = new ArrayList<>();
+            List<List<Integer>> seriesMed = new ArrayList<>();
+
+            // Generar lista de meses dentro del rango
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(desde);
+            SimpleDateFormat mesAnioFmt = new SimpleDateFormat("yyyy-MM");
+
+            Calendar fin = Calendar.getInstance();
+            fin.setTime(hasta);
+
+            while (!cal.after(fin)) {
+                etiquetasMes.add(mesAnioFmt.format(cal.getTime()));
+                cal.add(Calendar.MONTH, 1);
+            }
+
+            // Determinar medicamentos seleccionados (si hay filtro)
+            List<String> medsSeleccionados = new ArrayList<>();
+            if (medicamentoFiltro != null && !medicamentoFiltro.isEmpty()) {
+                medsSeleccionados = Arrays.asList(medicamentoFiltro.split(","));
+            } else {
+                // Si no se seleccionan, tomar los 3 más recetados del periodo
+                String sqlTop = "SELECT m.nombre, SUM(d.cantidad) as total " +
+                        "FROM DetalleReceta d JOIN Medicamento m ON d.codigo_medicamento = m.codigo " +
+                        "JOIN Receta r ON r.id = d.id_receta " +
+                        "WHERE r.fecha_confeccion BETWEEN ? AND ? " +
+                        "GROUP BY m.nombre ORDER BY total DESC LIMIT 3";
+                try (PreparedStatement stmt = conn.prepareStatement(sqlTop)) {
+                    stmt.setString(1, sdf.format(desde));
+                    stmt.setString(2, sdf.format(hasta));
+                    ResultSet rs = stmt.executeQuery();
+                    while (rs.next()) medsSeleccionados.add(rs.getString("nombre"));
                 }
             }
 
-            stats.put("confeccionadas", confeccionadas);
-            stats.put("proceso", proceso);
-            stats.put("lista", lista);
-            stats.put("entregadas", entregadas);
-            stats.put("total", confeccionadas + proceso + lista + entregadas);
+            // Para cada medicamento, obtener cantidad por mes
+            String sqlPorMes = "SELECT DATE_FORMAT(r.fecha_confeccion, '%Y-%m') as mes, SUM(d.cantidad) as total " +
+                    "FROM DetalleReceta d JOIN Medicamento m ON d.codigo_medicamento = m.codigo " +
+                    "JOIN Receta r ON r.id = d.id_receta " +
+                    "WHERE r.fecha_confeccion BETWEEN ? AND ? AND m.nombre = ? " +
+                    "GROUP BY mes ORDER BY mes";
 
-            String sqlMedicamentos = "SELECT m.nombre, SUM(d.cantidad) as total_prescrito " +
-                    "FROM DetalleReceta d " +
-                    "JOIN Medicamento m ON d.codigo_medicamento = m.codigo " +
-                    "JOIN Receta r ON d.id_receta = r.id " +
-                    "WHERE r.fecha_confeccion BETWEEN ? AND ? " +
-                    (medicamentoFiltro != null && !medicamentoFiltro.isEmpty() ?
-                            " AND m.nombre LIKE ? " : "") +
-                    "GROUP BY m.nombre ORDER BY total_prescrito DESC LIMIT 10";
+            for (String med : medsSeleccionados) {
+                List<Integer> valores = new ArrayList<>(Collections.nCopies(etiquetasMes.size(), 0));
 
-            PreparedStatement stmtMedicamentos = conn.prepareStatement(sqlMedicamentos);
-            stmtMedicamentos.setString(1, sdf.format(desde));
-            stmtMedicamentos.setString(2, sdf.format(hasta));
+                try (PreparedStatement stmt = conn.prepareStatement(sqlPorMes)) {
+                    stmt.setString(1, sdf.format(desde));
+                    stmt.setString(2, sdf.format(hasta));
+                    stmt.setString(3, med);
+                    ResultSet rs = stmt.executeQuery();
 
-            if (medicamentoFiltro != null && !medicamentoFiltro.isEmpty()) {
-                stmtMedicamentos.setString(3, "%" + medicamentoFiltro + "%");
+                    while (rs.next()) {
+                        String mes = rs.getString("mes");
+                        int idx = etiquetasMes.indexOf(mes);
+                        if (idx >= 0) valores.set(idx, rs.getInt("total"));
+                    }
+                }
+
+                nombresMed.add(med);
+                seriesMed.add(valores);
             }
 
-            ResultSet rsMedicamentos = stmtMedicamentos.executeQuery();
-            List<String> nombresMedicamentos = new ArrayList<>();
-            List<Integer> cantidadesMedicamentos = new ArrayList<>();
-
-            while (rsMedicamentos.next()) {
-                nombresMedicamentos.add(rsMedicamentos.getString("nombre"));
-                cantidadesMedicamentos.add(rsMedicamentos.getInt("total_prescrito"));
-            }
-
-            stats.put("nombres_medicamentos", nombresMedicamentos);
-            stats.put("cantidades_medicamentos", cantidadesMedicamentos);
+            stats.put("etiquetas_meses", etiquetasMes);
+            stats.put("nombres_medicamentos", nombresMed);
+            stats.put("series_medicamentos", seriesMed);
 
         } catch (SQLException e) {
             System.err.println("Error obteniendo estadísticas: " + e.getMessage());
@@ -613,6 +654,10 @@ public class ServiceImpl implements Service {
 
         return stats;
     }
+
+
+
+
 
     @Override
     public void enviarMensaje(String remitente, String destinatario, String texto) {
