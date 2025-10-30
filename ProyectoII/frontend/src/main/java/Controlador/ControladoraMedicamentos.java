@@ -9,6 +9,7 @@ import org.json.JSONObject;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -212,38 +213,29 @@ public class ControladoraMedicamentos {
     private void buscarMedicamento() {
         try {
             String codigoStr = vista.getTxtBusquedaCodigo().getText().trim();
-            String nombre = vista.getTxtBusquedaNombreMedicamento().getText().trim();
+            String nombreStr = vista.getTxtBusquedaNombreMedicamento().getText().trim();
 
-            // Búsqueda local en los datos ya cargados
-            modeloTabla.setRowCount(0);
+            DefaultTableModel model = (DefaultTableModel) vista.getTablaMedicamentos().getModel();
+            TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+            vista.getTablaMedicamentos().setRowSorter(sorter);
 
-            for (Medicamento medicamento : modelo.getMedicamentos()) {
-                boolean coincide = true;
+            java.util.List<RowFilter<Object, Object>> filtros = new java.util.ArrayList<>();
 
-                if (!codigoStr.isEmpty()) {
-                    String codigoMed = String.valueOf(medicamento.getCodigo());
-                    if (!codigoMed.contains(codigoStr)) {
-                        coincide = false;
-                    }
-                }
-
-                if (!nombre.isEmpty()) {
-                    if (!medicamento.getNombre().toLowerCase().contains(nombre.toLowerCase())) {
-                        coincide = false;
-                    }
-                }
-
-                if (coincide) {
-                    Object[] row = {
-                            medicamento.getCodigo(),
-                            medicamento.getNombre(),
-                            medicamento.getPresentacion()
-                    };
-                    modeloTabla.addRow(row);
-                }
+            if (!codigoStr.isEmpty()) {
+                // Filtra por columna 0 = Código
+                filtros.add(RowFilter.regexFilter("(?i)" + codigoStr, 0));
             }
 
-            if (modeloTabla.getRowCount() == 0 && (!codigoStr.isEmpty() || !nombre.isEmpty())) {
+            if (!nombreStr.isEmpty()) {
+                // Filtra por columna 1 = Nombre
+                filtros.add(RowFilter.regexFilter("(?i)" + nombreStr, 1));
+            }
+
+            RowFilter<Object, Object> rf = filtros.isEmpty() ? null : RowFilter.andFilter(filtros);
+            sorter.setRowFilter(rf);
+
+            // Mensaje si no hay coincidencias
+            if (sorter.getViewRowCount() == 0 && (!codigoStr.isEmpty() || !nombreStr.isEmpty())) {
                 JOptionPane.showMessageDialog(vista.getFrame(),
                         "No se encontraron medicamentos con los criterios de búsqueda",
                         "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
@@ -251,7 +243,8 @@ public class ControladoraMedicamentos {
 
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(vista.getFrame(),
-                    "Error en búsqueda: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    "Error en búsqueda: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
