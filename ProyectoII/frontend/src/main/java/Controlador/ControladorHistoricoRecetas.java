@@ -75,24 +75,32 @@ public class ControladorHistoricoRecetas {
         for (int i = 0; i < recetas.length(); i++) {
             JSONObject receta = recetas.getJSONObject(i);
             Object[] fila = {
-                    receta.getInt("id"),
-                    receta.getString("id_paciente"),
-                    receta.getString("nombre_paciente"),
-                    receta.getString("id_medico"),
-                    receta.getString("nombre_medico"),
-                    receta.getString("fecha_confeccion"),
-                    receta.getString("fecha_retiro"),
-                    receta.getString("estado")
+                    receta.getInt("id"),                 // ID Receta
+                    receta.getString("nombre_paciente"), // Paciente
+                    receta.getString("fecha_confeccion"),// Fecha Creación
+                    receta.getString("estado")           // Estado
             };
             modeloTablaHistorico.addRow(fila);
         }
     }
 
     private void buscarHistorico() {
-        String filtro = vista.getTxtBusquedaHistorico().getText().trim().toLowerCase();
+        String filtro = vista.getTxtBusquedaHistorico().getText().trim();
 
         if (filtro.isEmpty()) {
+            // Si no hay filtro, cargamos todo el histórico
             cargarHistoricoDesdeBackend();
+            return;
+        }
+
+        int idBuscado;
+        try {
+            idBuscado = Integer.parseInt(filtro); // Convertimos a entero
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(vista.getFrame(),
+                    "Ingrese un ID de receta válido (solo números).",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -100,45 +108,73 @@ public class ControladorHistoricoRecetas {
             try {
                 JSONObject respuesta = proxyService.obtenerRecetas();
                 SwingUtilities.invokeLater(() -> {
-                    modeloTablaHistorico.setRowCount(0);
+                    modeloTablaHistorico.setRowCount(0); // Limpiamos la tabla
 
                     if ("éxito".equals(respuesta.optString("estado"))) {
                         JSONArray array = respuesta.getJSONArray("datos");
-                        int resultados = 0;
+                        boolean encontrado = false;
 
                         for (int i = 0; i < array.length(); i++) {
                             JSONObject receta = array.getJSONObject(i);
-                            boolean coincide =
-                                    String.valueOf(receta.getInt("id")).contains(filtro) ||
-                                            receta.getString("id_paciente").toLowerCase().contains(filtro) ||
-                                            receta.getString("nombre_paciente").toLowerCase().contains(filtro) ||
-                                            receta.getString("id_medico").toLowerCase().contains(filtro) ||
-                                            receta.getString("nombre_medico").toLowerCase().contains(filtro) ||
-                                            receta.getString("estado").toLowerCase().contains(filtro);
+                            if (receta.getInt("id") == idBuscado) {
 
-                            if (coincide) {
+                                // 🔹 Mostramos la receta en la tabla
                                 Object[] fila = {
-                                        receta.getInt("id"),
-                                        receta.getString("id_paciente"),
-                                        receta.getString("nombre_paciente"),
-                                        receta.getString("id_medico"),
-                                        receta.getString("nombre_medico"),
-                                        receta.getString("fecha_confeccion"),
-                                        receta.getString("fecha_retiro"),
-                                        receta.getString("estado")
+                                        receta.getInt("id"),                 // ID Receta
+                                        receta.getString("nombre_paciente"), // Paciente
+                                        receta.getString("fecha_confeccion"),// Fecha Creación
+                                        receta.getString("estado")           // Estado
                                 };
                                 modeloTablaHistorico.addRow(fila);
-                                resultados++;
+                                encontrado = true;
+
+                                // 🔹 Mostramos los detalles en el área de texto
+                                StringBuilder detalles = new StringBuilder();
+                                detalles.append("ID Receta: ").append(receta.getInt("id")).append("\n");
+                                detalles.append("Paciente: ").append(receta.optString("nombre_paciente", "No especificado")).append("\n");
+                                detalles.append("Médico: ").append(receta.optString("nombre_medico", "No especificado")).append("\n");
+                                detalles.append("Fecha de creación: ").append(receta.optString("fecha_confeccion", "N/A")).append("\n");
+                                detalles.append("Estado: ").append(receta.optString("estado", "N/A")).append("\n\n");
+
+                                // 🔹 Si tiene medicamentos asociados
+                                if (receta.has("medicamentos")) {
+                                    JSONArray meds = receta.getJSONArray("medicamentos");
+                                    detalles.append("Medicamentos:\n");
+                                    for (int j = 0; j < meds.length(); j++) {
+                                        JSONObject med = meds.getJSONObject(j);
+                                        detalles.append("- ").append(med.optString("nombre", "Desconocido"));
+                                        if (med.has("dosis"))
+                                            detalles.append(" (").append(med.optString("dosis")).append(")");
+                                        detalles.append("\n");
+                                    }
+                                    detalles.append("\n");
+                                }
+
+                                // 🔹 Si tiene indicaciones
+                                if (receta.has("indicaciones")) {
+                                    detalles.append("Indicaciones: ").append(receta.optString("indicaciones", "Ninguna")).append("\n");
+                                }
+
+                                vista.getTxtDetallesHistorico().setText(detalles.toString());
+                                break; // Ya encontramos la receta
                             }
                         }
 
-                        JOptionPane.showMessageDialog(vista.getFrame(),
-                                "Búsqueda completada. " + resultados + " resultados.",
-                                "Información",
-                                JOptionPane.INFORMATION_MESSAGE);
+                        if (encontrado) {
+                            JOptionPane.showMessageDialog(vista.getFrame(),
+                                    "Receta encontrada y mostrada con detalles.",
+                                    "Información",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        } else {
+                            vista.getTxtDetallesHistorico().setText(""); // Limpiamos detalles si no se encontró
+                            JOptionPane.showMessageDialog(vista.getFrame(),
+                                    "No se encontró ninguna receta con ese ID.",
+                                    "Información",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        }
                     } else {
                         JOptionPane.showMessageDialog(vista.getFrame(),
-                                "Error en búsqueda: " + respuesta.optString("mensaje"),
+                                "Error al buscar histórico: " + respuesta.optString("mensaje"),
                                 "Error",
                                 JOptionPane.ERROR_MESSAGE);
                     }
@@ -146,13 +182,14 @@ public class ControladorHistoricoRecetas {
             } catch (Exception e) {
                 SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(vista.getFrame(),
-                            "Error en búsqueda: " + e.getMessage(),
+                            "Error al buscar histórico: " + e.getMessage(),
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
                 });
             }
         }).start();
     }
+
 
     private void limpiarFiltro() {
         vista.getTxtBusquedaHistorico().setText("");

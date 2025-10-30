@@ -20,7 +20,7 @@ public class Interfaz {
     private DefaultListModel<String> usersListModel;
     private JList<String> usersList;
     private JButton btnSendMessage;
-    private JButton btnReceiveMessages;
+    //private JButton btnReceiveMessages;
     private JLabel lblActiveUsers;
 
     private JPanel panelMedicos;
@@ -88,9 +88,9 @@ public class Interfaz {
         return btnSendMessage;
     }
 
-    public JButton getBtnReceiveMessages() {
-        return btnReceiveMessages;
-    }
+//    public JButton getBtnReceiveMessages() {
+//        return btnReceiveMessages;
+//    }
 
 
     public JFrame getFrame() { return frame; }
@@ -249,17 +249,17 @@ public class Interfaz {
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         btnSendMessage = new JButton("Enviar");
-        btnReceiveMessages = new JButton("Recibir");
+        //btnReceiveMessages = new JButton("Recibir");
 
         btnSendMessage.setBackground(new Color(70, 130, 180));
-        btnSendMessage.setForeground(Color.WHITE);
+        btnSendMessage.setForeground(Color.BLACK);
         btnSendMessage.setFocusPainted(false);
-        btnReceiveMessages.setBackground(new Color(34, 139, 34));
-        btnReceiveMessages.setForeground(Color.WHITE);
-        btnReceiveMessages.setFocusPainted(false);
+//        btnReceiveMessages.setBackground(new Color(34, 139, 34));
+//        btnReceiveMessages.setForeground(Color.WHITE);
+//        btnReceiveMessages.setFocusPainted(false);
 
         botones.add(btnSendMessage);
-        botones.add(btnReceiveMessages);
+        //botones.add(btnReceiveMessages);
 
         panel.add(lblActiveUsers, BorderLayout.NORTH);
         panel.add(scrollUsuarios, BorderLayout.CENTER);
@@ -862,10 +862,6 @@ public class Interfaz {
         });
         center.add(new JScrollPane(tblRecetas));
 
-        tblDetalles = new JTable(new DefaultTableModel(new Object[]{"Código","Medicamento","Dosis","Cantidad"},0){
-            @Override public boolean isCellEditable(int r,int c){return false;}
-        });
-        center.add(new JScrollPane(tblDetalles));
         panelDespachar.add(center, BorderLayout.CENTER);
 
         JPanel south = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 8));
@@ -964,6 +960,12 @@ public class Interfaz {
     public JTable getTblDashMeds() {
         return tblDashMeds;
     }
+
+
+    public JTextArea getTxtDetallesHistorico() {
+        return txtDetallesHistorico;
+    }
+
 
 
 

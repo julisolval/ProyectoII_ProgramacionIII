@@ -30,13 +30,11 @@ public class ControladorDespacho {
         vista.getBtnMarcarLista().addActionListener(e -> actualizarEstadoReceta("LISTA"));
         vista.getBtnEntregar().addActionListener(e -> actualizarEstadoReceta("ENTREGADA"));
 
-        vista.getBtnBuscarRecetas().addActionListener(e -> {
-            cargarRecetasDesdeBackend();
-            SwingUtilities.invokeLater(this::buscarRecetasPorFiltro);
-        });
+        vista.getBtnBuscarRecetas().addActionListener(e -> buscarRecetasPorFiltro());
 
         vista.getBtnLimpiarRecetas().addActionListener(e -> limpiarCampos());
     }
+
 
     public void cargarRecetasDesdeBackend() {
         new Thread(() -> {
@@ -74,21 +72,69 @@ public class ControladorDespacho {
     }
 
     private void buscarRecetasPorFiltro() {
-        String filtroCedula = vista.getTfCedulaPaciente().getText().trim().toLowerCase();
+        String filtroCedula = vista.getTfCedulaPaciente().getText().trim();
         String filtroNombre = vista.getTfNombrePaciente().getText().trim().toLowerCase();
 
-        for (int i = modeloTablaRecetas.getRowCount() - 1; i >= 0; i--) {
-            String idPaciente = modeloTablaRecetas.getValueAt(i, 1).toString().toLowerCase();
-            String nombrePaciente = modeloTablaRecetas.getValueAt(i, 2).toString().toLowerCase();
-
-            boolean coincideCedula = filtroCedula.isEmpty() || idPaciente.contains(filtroCedula);
-            boolean coincideNombre = filtroNombre.isEmpty() || nombrePaciente.contains(filtroNombre);
-
-            if (!coincideCedula || !coincideNombre) {
-                modeloTablaRecetas.removeRow(i);
-            }
+        if (filtroCedula.isEmpty() && filtroNombre.isEmpty()) {
+            // Si no hay filtro, cargamos todo
+            cargarRecetasDesdeBackend();
+            return;
         }
+
+        new Thread(() -> {
+            try {
+                JSONObject respuesta = proxyService.obtenerRecetas();
+                SwingUtilities.invokeLater(() -> {
+                    modeloTablaRecetas.setRowCount(0); // Limpiamos la tabla
+
+                    if ("éxito".equals(respuesta.optString("estado"))) {
+                        JSONArray array = respuesta.getJSONArray("datos");
+                        int coincidencias = 0;
+
+                        for (int i = 0; i < array.length(); i++) {
+                            JSONObject receta = array.getJSONObject(i);
+                            String idPaciente = receta.optString("id_paciente", "");
+                            String nombrePaciente = receta.optString("nombre_paciente", "").toLowerCase();
+
+                            boolean coincideCedula = filtroCedula.isEmpty() || idPaciente.equals(filtroCedula);
+                            boolean coincideNombre = filtroNombre.isEmpty() || nombrePaciente.contains(filtroNombre);
+
+                            if (coincideCedula && coincideNombre) {
+                                Object[] fila = {
+                                        receta.optInt("id"),
+                                        receta.optString("id_paciente", ""),
+                                        receta.optString("nombre_paciente", ""),
+                                        receta.optString("fecha_retiro", ""),
+                                        receta.optString("estado", "CONFECCIONADA")
+                                };
+                                modeloTablaRecetas.addRow(fila);
+                                coincidencias++;
+                            }
+                        }
+
+                        if (coincidencias == 0) {
+                            JOptionPane.showMessageDialog(vista.getFrame(),
+                                    "No se encontraron recetas con los filtros ingresados.",
+                                    "Información",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        }
+
+                    } else {
+                        JOptionPane.showMessageDialog(vista.getFrame(),
+                                "Error al buscar recetas: " + respuesta.optString("mensaje"),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(vista.getFrame(),
+                        "Error al buscar recetas: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE));
+            }
+        }).start();
     }
+
 
     private void actualizarEstadoReceta(String nuevoEstado) {
         int filaSeleccionada = vista.getTblRecetas().getSelectedRow();

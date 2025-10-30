@@ -42,7 +42,7 @@ public class ControladorUsuariosActivos {
     private void inicializarEventos() {
         vista.getBtnSendMessage().addActionListener(e -> enviarMensaje());
 
-        vista.getBtnReceiveMessages().addActionListener(e -> recibirMensajes());
+        //vista.getBtnReceiveMessages().addActionListener(e -> recibirMensajes());
     }
 
     private void enviarMensaje() {
